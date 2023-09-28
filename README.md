@@ -17,6 +17,15 @@ Track the landing room of every portal you use. Use a single command to enable/d
 chaosmap help
 ```
 
+**Aard_Drop_Duplicates**
+
+Drop unkept items with the same name as each other.
+
+```
+show duplicates
+drop duplicates
+```
+
 **Aard_Easy_bid**
 
 Bid/lbid with simplified syntax, like
