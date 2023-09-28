@@ -10,7 +10,7 @@ autotrain help
 
 **Aard_Chaosmap**
 
-Track the landing room of every portal you use. Use a single command to enable/disable regular chaos portals for GQs.
+Track the landing room of every chaos portal you use. Use a single command to enable/disable regular chaos portals for GQs.
 
 ```
 chaosmap help
