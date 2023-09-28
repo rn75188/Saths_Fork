@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Easy_Bid"
+   author="Sath"
+   id="9c00c32985e04230a56e0d5d"
+   language="Lua"
+   purpose="Adds syntax improvements to money-handling commands."
+   save_state="n"
+   date_written="2021-02-08 11:00:00"
+   requires="2.0"
+   version="1.0"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+<aliases>
+	<alias
+		match="^bid (\d+(?:\.\d+)?)([kKmMbB])$"
+		enabled="y"
+		regexp="y"
+		script="bid_no_num"
+		sequence="100"
+		keep_evaluating="n"
+	/>
+	<alias
+		match="^bid (\d+) (\d+(?:\.\d+)?)([kKmMbB])$"
+		enabled="y"
+		regexp="y"
+		script="bid_num"
+		sequence="100"
+		keep_evaluating="n"
+	/>
+	<alias
+		match="^(lbid|market bid) (\d+) (\d+(?:\.\d+)?)([kKmMbB])( proxy( confirm)?)?$"
+		enabled="y"
+		regexp="y"
+		script="lbid"
+		sequence="100"
+		keep_evaluating="n"
+	/>
+	<alias
+		match="^give (\d+(?:\.\d+)?)([kKmMbB]) (.+)$"
+		enabled="y"
+		regexp="y"
+		script="give"
+		sequence="100"
+		keep_evaluating="n"
+	/>
+	<alias
+		match="^withdraw (\d+(?:\.\d+)?)([kKmMbB])$"
+		enabled="y"
+		regexp="y"
+		script="withdraw"
+		sequence="100"
+		keep_evaluating="n"
+	/>
+	<alias
+		match="^deposit (\d+(?:\.\d+)?)([kKmMbB])$"
+		enabled="y"
+		regexp="y"
+		script="deposit"
+		sequence="100"
+		keep_evaluating="n"
+	/>
+</aliases>
+
+
+
+<triggers>
+	
+</triggers>
+
+
+
+<script>
+<![CDATA[
+function get_amount(ones, mult)
+	local multiplier
+	if string.lower(mult) == "m" then
+		multiplier = 1000000
+	elseif string.lower(mult) == "k" then
+		multiplier = 1000
+	elseif string.lower(mult) == "b" then
+		multiplier = 1000000000
+	else
+		ColourNote("red", "", "Bad multiplier: " .. mult)
+		return
+	end
+	
+	return multiplier * tonumber(ones)
+end
+
+function bid_no_num(name, line, wc)
+	if not GetVariable("last_bid") then
+		ColourNote("red", "", "No previous auction number. Use bid <auction> <amount>.")
+	else
+		local amount = get_amount(wc[1], wc[2])
+		Execute("bid " .. GetVariable("last_bid") .. " " .. amount)
+	end
+end
+
+function bid_num(name, line, wc)
+	local amount = get_amount(wc[2], wc[3])
+	Execute("bid " .. wc[1] .. " " .. amount)
+	SetVariable("last_bid", wc[1])
+end
+
+function lbid(name, line, wc)
+	local amount = get_amount(wc[3], wc[4])
+	Execute(wc[1] .. " " .. wc[2] .. " " .. amount .. wc[5])
+end
+
+function give(name, line, wc)
+	local amount = get_amount(wc[1], wc[2])
+	Execute("give " .. amount .. " gold " .. wc[3])
+end
+
+function withdraw(name, line, wc)
+	local amount = get_amount(wc[1], wc[2])
+	Execute("withdraw " .. amount)
+end
+
+function deposit(name, line, wc)
+	local amount = get_amount(wc[1], wc[2])
+	Execute("deposit " .. amount)
+end
+
+]]>
+</script>
+
+
+</muclient>

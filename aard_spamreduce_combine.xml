@@ -1,0 +1,2414 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Spamreduce_Combine"
+   author="Sath"
+   id="7d62bac935234fcfbf9401e8"
+   language="Lua"
+   purpose="Combines multiple lines of output into a single line."
+   save_state="y"
+   date_written="2021-03-22 12:00:00"
+   requires="4.73"
+   version="1.001"
+   sequence="50"
+   >
+<description trim="y">
+<![CDATA[
+** This plugin reduces MUD output by combining multiple lines into one.
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+<aliases>
+	<alias
+		match="spamreduce combine"
+		enabled="y"
+		script="spamreduce_list"
+		sequence="100"
+	/>
+	
+	<alias
+		match="spamreduce combine combat others"
+		enabled="y"
+		script="spamreduce_combat_others"
+		sequence="100"
+	/>
+
+	<alias
+		match="spamreduce combine combat others *"
+		enabled="y"
+		script="spamreduce_combat_others"
+		sequence="100"
+	/>
+	
+	<alias
+		match="spamreduce combine combat preserve"
+		enabled="y"
+		script="spamreduce_combat_preserve"
+		sequence="100"
+	/>
+
+	<alias
+		match="spamreduce combine bonusexp"
+		enabled="y"
+		script="spamreduce_bonusexp"
+		sequence="100"
+	/>
+
+	<alias
+		match="spamreduce combine *"
+		enabled="y"
+		script="toggle_var"
+		sequence="101"
+	/>
+	
+	<alias
+		match="spamreduce combine trigger *"
+		enabled="y"
+		script="spamreduce_trigger"
+		sequence="100"
+	/>
+	
+	<alias
+		match = "spamreduce combine triggers"
+		enabled="y"
+		script="spamreduce_triggers_all"
+		sequence="100"
+	/>
+	<alias
+		match = "spamreduce combine triggers *"
+		enabled="y"
+		script="spamreduce_triggers_search"
+		sequence="100"
+	/>
+</aliases>
+
+<triggers>
+	<trigger
+		enabled="y"
+		match="WFLAGS       Hide weapon flag messages (flaming, vorpal, etc) *"
+		sequence="100"
+		keep_evaluating="y"
+		script="display_spamreduce_option"
+	/>
+	
+	
+	<trigger
+		enabled="n"
+		name="death_pointless"
+		match="That was a pointless no-experience kill!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_other_exp"
+		match="* receives * experience point*."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_exp"
+		match="You receive * experience point*."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_exp_rare"
+		match="You receive * 'rare kill' experience bonus."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_exp_dbdouble_bonus"
+		match="You receive * bonus experience point* courtesy of *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+    <trigger
+		enabled="n"
+		name="death_exp_birthday_bonus1"
+		match="You receive * bonus experience point* to celebrate * years of Aardwolf!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="death_exp_birthday_bonus2"
+		match="You receive * bonus experience point* to celebrate * awesome years of AardWolf!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="death_exp_birthday_bonus3"
+		match="You receive * bonus experience point* to celebrate Aardwolf's * birthday!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="death_exp_christmas_bonus"
+		match="You receive * bonus experience points to celebrate whatever it is you celebrate today! :)"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+	<trigger
+		enabled="n"
+		name="death_exp_superhero_bonus"
+		match="You receive * bonus experience point* in honor of * reaching superhero."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_exp_daily_bonus"
+		match="You receive * bonus experience point* from your daily blessing."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_daily_exp_remaining"
+		match="^You have (\d+) daily blessing bonus experience kills? remaining.$"
+		regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_noexp"
+		match="You don't receive * experience point*."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_noexp_rare"
+		match="You don't receive * 'rare kill' experience bonus."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_noexp_bonus"
+		match="You don't receive * bonus experience point* courtesy of *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_noexp_superhero"
+		match="You don't receive * bonus experience point* in honor of * reaching superhero."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="death_noexp_birthday_bonus1"
+		match="You don't receive * bonus experience point* to celebrate * years of Aardwolf!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="death_noexp_birthday_bonus2"
+		match="You don't receive * bonus experience point* to celebrate * awesome years of AardWolf!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="death_noexp_birthday_bonus3"
+		match="You don't receive * bonus experience point* to celebrate Aardwolf's * birthday!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+
+    <trigger
+		enabled="n"
+		name="death_noexp_christmas_bonus"
+		match="You don't receive * bonus experience points to celebrate whatever it is you celebrate today! :)"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_noexp_daily"
+		match="You don't receive * bonus experience point* from your daily blessing."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	
+	<trigger
+		enabled="n"
+		name="death_is_noexp"
+		match="You have set your character to receive no experience point*!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_campaign"
+		match="Congratulations, that was one of your CAMPAIGN mobs!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_gq"
+		match="Congratulations, that was one of the GLOBAL QUEST mobs!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_gq_kills"
+		match="You can be rewarded for * more global quest kill* this level."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_gq_qp"
+		match="3 quest points awarded."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death_conditional"
+	/>
+
+	<trigger
+		enabled="n"
+		name="death_quest"
+		match="^QUEST: You have almost completed your QUEST!$|^Return to the questmaster before your time runs out\.$"
+        regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_other_vampire"
+		match="* drinks thirstily from *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_vampire1"
+		match="You bury your fangs deep into *, drinking thirstily."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_vampire2"
+		match="Ahhhh, that feels better!"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_other_split"
+		match="* shares * gold coins with *. Your share is * gold."
+		omit_from_output="y"
+		sequence="100"
+		group="death"
+		script="combine"
+	/>
+
+	<trigger
+		enabled="n"
+		name="death_split"
+		match="You share * gold coins with * other *. Your share is * gold."
+		omit_from_output="y"
+		sequence="100"
+		group="death"
+		script="combine"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_sacrifice"
+		match="* gives you * gold coins for *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death_unused"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_gold"
+		match="You get * gold coins from *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_gold_daily"
+		match="Your daily blessing added * gold to the corpse."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_daily_gold_remaining"
+		match="^You have (\d+) daily blessing bonus gold kills? remaining.$"
+		regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_gold_clan_tax"
+		match="You are taxed * gold coin* by your clan."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death_conditional"
+	/>
+
+	<trigger
+		enabled="n"
+		name="death_invitem"
+		match="{invitem}*"
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="death_conditional"
+	/>
+	<trigger
+		enabled="n"
+		name="death_invmon"
+		match="{invmon}*"
+		omit_from_output="y"
+		sequence="101"
+		script="ignore"
+		group="death_conditional"
+	/>
+
+	<trigger
+		enabled="n"
+		name="death_loot"
+		match="You get * from the *."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="death_conditional"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_crumble"
+		match="* crumbles into * gold pieces."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death_conditional"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="death_preserve_multiple"
+		match="^.* is too mesmerized at the explosion of Icefall to take a bite\!$|^You notice something very shiny in the corpse\!$|^.* exclaims \'If you\'re going to dissect me\, at least do it with a larger group\!\'$|^.* is too shocked at Icefall's gory remains to attack you!$|^.* hands .* some ICE for .* BURN!$|^.* burns .* after a hug! \[.*\]$|^.* reflects .* damage, injuring .*! \[.*\]$|^.* boggles 'How am I going to tank 50 of you if so few of you killed me\?!'$|^.* pops a balloon, injuring .*! \[.*\]$|^.* bites .* one last time! \[.*\]$|^.* boggles 'My destiny was to die from an epic powerup train!  What's this\?!'$|^.* kicks .* with .* boot! \[.*\]$|^.* exclaims 'If you're going to dissect me, at least do it with a larger group!'$|^.* smacks .* before dying! \[.*\]$"
+        regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="death"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="lotus_amount"
+		match="Wow....what a rush! [*]"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="lotus"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="lotus_max"
+		match="^Your concentration is now at its peak\.$|^Your concentration is already at its peak\.$"
+        regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="lotus"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="equip_invmon"
+		match="{invmon}*"
+		omit_from_output="y"
+		sequence="100"
+		script="ignore"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_as"
+		match="You equip * as a *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_pin"
+		match="You proudly pin * to your chest."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+
+    <trigger
+		enabled="n"
+		name="equip_on"
+		match="You wear * on your *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_around"
+		match="You wear * around your *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+
+    <trigger
+		enabled="n"
+		name="equip_secondary"
+		match="You wield * in your off-hand."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_wielded"
+		match="You wield *."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_aura"
+		match="* begins floating above you."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_float"
+		match="* begins floating around you."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="equip_light"
+		match="You light * and hold it."
+		omit_from_output="y"
+		sequence="101"
+		script="combine"
+		group="equip"
+	/>
+       
+    <trigger
+		enabled="n"
+		name="remove_as"
+		match="You stop using * as a *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+
+    <trigger
+		enabled="y"
+		name="remove_from_keyring"
+		match="You remove * from your keyring."
+		sequence="99"
+		script="none"
+	/>
+
+    <trigger
+		enabled="n"
+		name="remove_from"
+		match="You remove * from your *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_around"
+		match="You remove * from around your *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_wielded"
+		match="You stop wielding * in your primary hand."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_secondary"
+		match="You stop wielding * in your off-hand."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_float"
+		match="* stops floating around you."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_aura"
+		match="* stops floating above you."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_sleeping"
+		match="You remove your *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+    
+    <trigger
+		enabled="n"
+		name="remove_light"
+		match="You remove *, making the room a little darker."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="equip"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="spellup"
+		match="Queueing spell : *."
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="spellup"
+	/>
+
+	<trigger
+		enabled="n"
+		name="where_area"
+		match="You are in area : *"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="where"
+	/>	
+	<trigger
+		enabled="n"
+		name="where_creator"
+		match="Area created by : *"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="where"
+	/>	
+	<trigger
+		enabled="n"
+		name="where_range"
+		match="Level range is  : *"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="where"
+	/>	
+	<trigger
+		enabled="n"
+		name="where_players"
+		match="Players near you:"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="where"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="combat_immune"
+		match="^(?:\[(\d+)\] )?(.*) is unaffected by your (.*)\!$"
+		regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="combat"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="combat_force_multiple"
+		match="^.* heals .*self\.$|^Acidic poison severely impairs your senses\.$|^.* fails to curse .*\.$|^.* entangled in an invisible web\.$|^.* web fails to take hold of .*\.$|^You can\'t see a thing\!$|^.* kicks? dirt in .* eyes\!$|^The stench is incredible\, you feel faint and weak\!$|^.* dazes? .*\, slamming into .* like a tank\.$|^It tears at your existence and you feel extremely vulnerable\.$|^.* hits? .* with a massive blow\, leaving .* stunned\!$|^.* dazes? .* with a mind\-numbing headbutt\!$|^The venom destroys your combat ability\. You feel dizzy\.$|^.* flesh is ripped from .* body\.$|^You feel your strength slip away\.$|^You are weak and BLIND\!$|^\* jumps? in to defend .*\!$|^.* exclaims? \'Your level is of no interest to me .*\; I will kill you anyway\!\'$|^.* says? \'Your purity sickens me\, .*\.\'$"
+        regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="combat"
+	/>
+	
+	<trigger
+		enabled="n"
+		name="combat_preserve_multiple"
+		match="^You block .* way as .* attempts? to flee\.$|^.* restores? life to .*self\.$|^You are shocked by .*\.$|^.* drains? life from .*\.$|^.* (try|tries) to disarm .*, but fails?\.$|^.* fails? to stun .* and .* in an attack\!$|^.* fails? to blind .*\.$|^.* fails to hex .*\!$|^.* slime tears at .* soul\!$|^.* begins to spin around\, flailing wildly\.$|^.* hurls? a barrage of searing white blades at .*\!$|^A black field of death emanates from .*\.$|^.* slams .* head sideways into .*\. OUCH\! That smarts\!$|^.* jams .* fingers into .* eyes, causing .* searing pain\.$|^.* chokes as .* breathes in the poison\.$|^.* sweeps your legs from under you\!$|^A deep aura of dread settles around .*\.$|^.* catches .* completely off-guard and inflicts massive damage on .*\.$|^.* gets? a raged look in .* eyes\.$|^.* fails? to interfere with .* healing\.$|^.* screams? wildly and attacks? .*\.$|^.* with a series of hammering blows\!$|^.* black root smashes into you and you lose control of your senses\.$|^.* shoots? .* beam from .* hand straight towards .*\!$|^.* is poisoned by the venom on .*\.$|^.* raises .* and starts yelling KAI\-HA\!$|^.* yells KAI\-HA and then strikes .* torso\.$|^.* is frozen by .*\.$|^.* is burned by .*\.$|^.* eyes are seared by .*\.$|^.* spirit shield reflects .* back at .*\!$|^.* turns blue and shivers\.$|^.* gets a wild look in .* eyes\.$|^.* calls down rains of fire\!$|^.* screams? wildly and (try|tries) to cleave .* in half\!$|^A green mist emanates from .*\. The mist surrounds you\.$|^A green mist emanates from .* towards .*\.$|^.* a chilling cloud of ice\.$|^.* chants the phrase \'.*\'\.$|^.* bites .* on .* neck\.$|^.* hurls .* at .*, slamming into .* like a tank\.$|^\* breathes forth a huge blast of fire\.$|^.* calls the justice of .* to strike .* foes\!$|^.* fails to weaken .*\.$|^.* sprays .* with .*Kobold glands\.$|^.* failed to kick dirt into .* eyes\!$|^You feel a brief tingling sensation\.$|^.* sprays .* with acidic raven venom\.$|^.* touches .* with venomous hydra\'s blood\.$|^You feel momentarily ill\, but it passes\.$|^.* unleashes a blast of atomic energy on the room\.$|^.* smacks? .* with a solid uppercut\!$|^.* sends? .* sprawling with a powerful bash\!$|^.* conjures? a storm of freezing snow and sleet\.$|^.* tries to jump into the air\, realizes .* is already flying\, and kicks .* in the face instead\!$|^.* touch of nature heals .* wounds\.$|^You create a time shift and calmly step away from .* attack\.$|^You dodge .* attack\.$|^You are unaffected by .* dispel .*\.$|^You get lucky and manage to escape .* attack\.$|^You counter\-strike .* attack\!$|^You parry .* attack\.$|^You instinctively dodge .* attack\.$|^.* holy rift protects you from .* attack\.$|^You glow with energy as you absorb .*\.$|^You blink out of existence and avoid .* attack\.$|^You sense divine intervention as .* attack narrowly misses you\.$|^You misdirect .* attack\.$|^You blend perfectly with your surroundings and avoid .* attack\.$|^.* dodges? your attack\.$|^.* counter\-strikes your attack\!$|^.* parries your attack\.$|^.* misdirects your attack\.$|^.* holy rift protects .* from your attack\.$|^.* avoids your attack\, almost too easily\.$|^.* blocks your attack with .* shield\.$|^.* blends in perfectly causing .* to hit nothing but air\.$|^.* blinks out of existence avoiding your attack\.$|^.* fiddles with time and your attack is just a few seconds slow\.$|^.* shimmers momentarily\.$|^.* is shocked by .*\.$|^You are frozen by .*\.$|^.* muscles stop responding\.$|^You feel your blood being drained\!$|^Suddenly\, after performing an incantation\, .* disappears\.$|^.* tries to slow .* down but fails\.$|^.* reappears behind .* and stabs .* in the back\!$|^.* circles around .* and stabs .* in the back\!$|^.* forms a deadly cloud of poison\.$|^You feel a little run down\, but it passes\.$|^You feel .* drawing your life away\.$|^You feel a momentary chill on your neck\.$|^Your power grip is too strong for .*\.$|^Your head throbs as your reality is torn apart\!$|^.* uses the power of the cobra against .*\.$|^.* poison tears at .* skin\, .* eyes stream in agony\.$|^.* hammers? you with a series of blows!$|^(.*?) breathes forth a huge blast of fire\.$|^Unseen forces protect you from (.*?) tangling web\.$"
+        regexp="y"
+		omit_from_output="y"
+		sequence="100"
+		script="combine"
+		group="combat"
+	/>
+	
+	<trigger
+		enabled="y"
+		match="*"
+		sequence="200"
+		script="non_combine"
+	/>
+</triggers>
+
+<script>
+<![CDATA[
+require("gmcphelper")
+json = require("json")
+
+options = {
+	lotus = {
+		desc = "Combine lotus potion output",
+	},
+    equip = {
+		desc = "Combine equip/remove output",
+	},
+	spellup = {
+		desc = "Combine spellup command output",
+	},
+	where = {
+		desc = "Combine the header on the 'where' command",
+	},
+	combat = {
+		desc = "Combine lines of combat",
+	},
+	death = {
+		desc = "Combine mob death output."
+	},
+}
+
+function OnPluginInstall()
+	if not GetVariable("combat_others") then
+		SetVariable("combat_others", "full")
+	end
+	
+	if GetVariable("trigger_overrides") then
+		trigger_overrides = json.decode(GetVariable("trigger_overrides"))
+	else
+		trigger_overrides = {}
+	end
+	
+	for v in pairs(options) do
+		enable_group(v, GetVariable(v) == "true")
+	end
+	
+	suppress_triggers_for_all_tags()
+end
+
+function enable_group(group, enable)
+	EnableTriggerGroup(group, enable)
+	EnableTriggerGroup(group .. "_conditional", false)
+	for trigger in pairs(trigger_overrides) do
+		EnableTrigger(trigger, false)
+	end
+end
+
+function OnPluginConnect()
+end
+
+function display_spamreduce_option()
+	ColourNote("silver", "", "COMBINE      Type 'spamreduce combine' for list of options")
+end
+
+function spamreduce_list()
+	ColourNote("teal", "", "Option       Description                                      Status")
+	ColourNote("silver", "", "---------------- ------------------------------------------------ ------")
+	for option, info in pairs(options) do
+		ColourTell("silver", "", string.format("%-16s %-49s", string.upper(option), info.desc))
+		if GetVariable(option) == "true" then
+			ColourTell("lime", "", "Yes")
+		else
+			ColourTell("red", "", "No")
+		end
+		Note()
+		
+		if option == "combat" and GetVariable(option) == "true" then
+			ColourTell("silver", "", string.format("%-16s %-49s", string.upper("COMBAT OTHERS"), "Display others' damage (hide/list/full)"))
+			ColourTell("yellow", "", upper_first(GetVariable("combat_others")))
+			Note()
+
+			ColourTell("silver", "", string.format("%-16s %-49s", string.upper("COMBAT PRESERVE"), "Display non-damage lines in combat"))
+			if GetVariable("preserve") == "true" then
+				ColourTell("lime", "", "Yes")
+			else
+				ColourTell("red", "", "No")
+			end
+			Note()
+		end
+	end
+	ColourNote("silver", "", "---------------------------------------------------------------------")
+end
+
+function toggle_var(name, line, wc)
+	local option = wc[1]
+	if options[option] then
+		ColourTell("silver", "", "Turning ")
+		if GetVariable(option) == "true" then
+			ColourTell("red", "", "OFF")
+			SetVariable(option, "false")
+			enable_group(option, false)
+		else
+			ColourTell("lime", "", "ON")
+			SetVariable(option, "true")
+			enable_group(option, true)
+		end
+		ColourTell("silver", "", " option: " .. options[option].desc)
+		Note()
+	else
+		ColourNote("silver", "", "Invalid spam combine option given. Type 'spamreduce combine' for a list.")
+	end
+end
+
+function spamreduce_combat_preserve()
+	ColourTell("silver", "", "Turning ")
+	if GetVariable("preserve") == "true" then
+		ColourTell("red", "", "OFF")
+		SetVariable("preserve", "false")
+	else
+		ColourTell("lime", "", "ON")
+		SetVariable("preserve", "true")
+	end
+	
+	ColourTell("silver", "", " combat setting to preserve non-damage lines.")
+	Note()
+end
+
+function spamreduce_bonusexp()
+	ColourTell("silver", "", "Turning ")
+	if GetVariable("bonusexp_pct") == "true" then
+		ColourTell("red", "", "OFF")
+		SetVariable("bonusexp_pct", "false")
+	else
+		ColourTell("lime", "", "ON")
+		SetVariable("bonusexp_pct", "true")
+	end
+	
+	ColourTell("silver", "", " bonus exp percentages.")
+	Note()
+end
+
+function spamreduce_combat_others(name, line, wc)
+	if wc[1] == "hide" or wc[1] == "list" or wc[1] == "full" then
+		set_other(wc[1])
+	else
+		ColourTell("silver", "", "Valid options for ")
+		ColourTell("olive", "", "spamreduce combine combat others")
+		ColourTell("silver", "", ": ")
+		ColourTell("yellow", "", "hide list full")
+		Note()
+	end
+end
+
+function spamreduce_trigger(name, line, wc)
+	local trigger = wc[1]
+	local group = GetTriggerOption(trigger, "group")
+	if group and group ~= "" then
+		if trigger_overrides[trigger] then
+			ColourNote("lime", "", "Enabling trigger: " .. trigger)
+			trigger_overrides[trigger] = nil
+		else
+			ColourNote("red", "", "Disabling trigger: " .. trigger)
+			trigger_overrides[trigger] = true
+		end
+		SetVariable("trigger_overrides", json.encode(trigger_overrides))
+		group = remove_from_end(group, "_conditonal")
+		enable_group(group, GetVariable(group) == "true")
+	else
+		ColourNote("red", "", "No such trigger: " .. trigger)
+	end
+end
+
+function spamreduce_triggers_all()
+	ColourNote("yellow", "", "All triggers:")
+	display_triggers(GetTriggerList())
+end
+
+function spamreduce_triggers_search(name, line, wc)
+	local search = string.lower(wc[1])
+	local matches = {}
+	
+	for _,name in pairs(GetTriggerList()) do
+		local match_str = GetTriggerOption(name, "match")
+		if string.find(string.lower(name), search, 1, true) or (match_str and string.find(string.lower(match_str), search, 1, true)) then
+			table.insert(matches, name)
+		end
+	end
+	
+	if #matches > 0 then
+		ColourNote("yellow", "", "Triggers matching '" .. search .. "':")
+		display_triggers(matches)
+	else
+		ColourNote("red", "", "No triggers matched '" .. search .. "'")
+	end
+end
+
+function display_triggers(triggers)
+	local groups = {}
+	for _,trigger in pairs(triggers) do
+		local group = GetTriggerOption(trigger, "group")
+		group = remove_from_end(group, "_conditional")
+		groups[group] = groups[group] or {}
+		
+		table.insert(groups[group], trigger)
+	end
+	
+	for name, triggers in pairs(groups) do
+		ColourNote("white", "", "Group: " .. name)
+		
+		table.sort(triggers)
+		for _, trigger in ipairs(triggers) do
+			ColourTell("silver", "", string.format("%-35s", trigger))
+			if trigger_overrides[trigger] then
+				ColourTell("red", "", "Off ")
+			else
+				ColourTell("lime", "", "On  ")
+			end
+			local match_str = GetTriggerOption(trigger, "match")
+			if match_str then
+				ColourTell("silver", "", string.format("%-40.40s", match_str))
+			end
+			Note()
+		end
+	end
+end
+
+function set_other(value)
+	ColourTell("silver", "", "Display third party combat : ")
+	ColourTell("yellow", "", value)
+	Note()
+	
+	SetVariable("combat_others", value)
+end
+
+function non_combine(name, line, wc)
+	clear_combine_data()
+	prev_group = nil
+end
+
+function clear_combine_data()
+	for option, info in pairs(options) do
+		info.data = nil
+		EnableTriggerGroup(option .. "_conditional", false)
+	end
+end
+
+function combine_group(group)
+	local new_group = false
+	
+	if group ~= prev_group or (group and options[group].end_line ~= GetLineCount()) then
+		new_group = true
+		clear_combine_data()
+	end
+	prev_group = group
+	
+	EnableTriggerGroup(group .. "_conditional", true)
+
+	if not options[group].data then
+        local line_count = GetLineCount()
+		if new_group and group == "death" and line_is_all_red(line_count-1) then
+            if line_is_all_red(line_count-2) then
+                options[group].data = {
+                    start_line = line_count - 2
+                }
+            else
+                options[group].data = {
+                    start_line = line_count-1
+                }
+            end
+		else
+			options[group].data = {
+				start_line = line_count
+			}
+		end
+	end
+	
+	DeleteLines(GetLineCount() - options[group].data.start_line)
+end
+
+function line_is_all_red(line_num)
+	local info = get_line_info(line_num)
+    
+    if info and info.sr and #info.sr >= 1 and RGBColourToName(info.sr[1].textcolour) == "red" then
+        if #info.sr == 2 and info.sr[2].text == "" then
+            return true
+        elseif #info.sr == 1 then
+            return true
+        end
+    end
+end
+
+function is_newline(line_num)
+	local info = get_line_info(line_num)
+	return info and info.newline
+end
+
+function get_player_info(player_name)
+	local success, player_info = CallPlugin("1be8c97f04fa4558b6ba98a4", "get_who", player_name)
+	if success == 0 and player_info then
+		return json.decode(player_info)
+	end
+end
+
+function combine(name, line, wc, sr)
+	local group = GetTriggerOption(name, "group")
+	group = remove_from_end(group, "_conditional")
+	
+	if GetVariable(group) == "true" then
+		combine_group(group)
+		local data = options[group].data
+	
+		if group == "death" then
+			if starts_with(name, "death_exp") or starts_with(name, "death_noexp") then
+				if starts_with(name, "death_noexp") then
+					data.noexp = true
+				end
+				
+				if not data.exp then
+					data.exp = {}
+				end
+
+                local exp_sr = get_wildcard_sr(line, wc, sr, 1)
+				for _,run in ipairs(exp_sr) do
+                    local pieces = split(run.text, "+")
+                    for _,amt in ipairs(pieces) do
+                        amt = tonumber(amt)
+                        if amt then
+                            table.insert(data.exp, {
+                                amt=amt,
+                                color=RGBColourToName(run.textcolour)
+                            })
+                        end
+                    end
+				end
+			elseif starts_with(name, "death_preserve") then
+				data.preserve = data.preserve or {}
+				table.insert(data.preserve, sr)
+			elseif name == "death_other_exp" then
+				data.other_exp = data.other_exp or {}
+				table.insert(data.other_exp, {name=wc[1], amt=wc[2]})
+			elseif name == "death_other_vampire" then
+				data.other_vampire = wc[1]
+			elseif name == "death_daily_exp_remaining" then
+				data.daily_exp = wc[1]
+			elseif name == "death_pointless" then
+				data.pointless = true
+			elseif name == "death_is_noexp" then
+				data.noexp = true
+			elseif name == "death_gold" or name == "death_gold_daily" then
+				if data.gold then
+					data.gold = data.gold .. " + " .. wc[1]
+				else
+					data.gold = wc[1]
+				end
+			elseif name == "death_gold_clan_tax" then
+				if data.tax then
+					data.tax = data.tax .. "+" .. wc[1]
+				else
+					data.tax = wc[1]
+				end
+			elseif name == "death_daily_gold_remaining" then
+				data.daily_gold = wc[1]
+			elseif name == "death_other_split" then
+				data.other_split = data.other_split or {}
+				table.insert(data.other_split, {
+					name = wc[1],
+					total = wc[2],
+					share = wc[4]
+				})
+			elseif name == "death_loot" then
+				sr[1].text = remove_from_start(sr[1].text, "You get ")
+				
+				local delete_remaining = false
+				for i,run in ipairs(sr) do
+					if delete_remaining and i > 1 then
+						sr[i] = nil
+					else
+						local pos = string.find(run.text, " from the ")
+						if pos then
+							if pos > 1 then
+								run.text = string.sub(run.text, 1, pos-1)
+							else
+								sr[i] = nil
+							end
+							delete_remaining = true
+						end
+					end
+				end
+				
+				data.loot_items = data.loot_items or {}
+				table.insert(data.loot_items, {
+					sr = sr
+				})
+			elseif name == "death_crumble" then
+				if data.loot_items then
+					data.loot_items[#data.loot_items].crumble = wc[2]
+				end
+			elseif name == "death_split" then
+				data.split = data.split or {}
+				table.insert(data.split, {
+					total = wc[1],
+					count = wc[2],
+					share = wc[4]
+				})
+			elseif name == "death_campaign" then
+				data.cp = true
+			elseif name == "death_gq" then
+				data.gq = true
+			elseif name == "death_gq_kills" then
+				data.gq_kills = wc[1]
+			elseif name == "death_gq_qp" then
+				data.gq_qp = (data.gq_qp or 0) + 3
+			elseif name == "death_quest" then
+				data.quest = true
+			elseif name == "death_vampire1" or name == "death_vampire2" then
+				data.vampire = true
+			elseif name == "death_sacrifice" then
+				local gold = wc[2]
+				
+				table.remove(sr, 1)
+				table.remove(sr, 1)
+				if sr[1] then
+					sr[1].text = remove_from_start(sr[1].text, " gold coins for ")
+					sr[#sr].text = remove_from_end(sr[#sr].text, ".")
+				end
+				
+				if not data.sac then
+					data.sac = {}
+				end
+				table.insert(data.sac, {
+					gold = gold,
+					item = sr
+				})
+			end
+			
+			if data.exp or data.gold or data.pointless or data.loot_items then
+				ColourTell("silver", "", "You get: ")
+				local needs_comma = false
+				
+				if data.exp then
+					local total = 0
+					local needs_plus = false
+					for i,piece in ipairs(data.exp) do
+						if needs_plus then
+							if data.noexp then
+								ColourTell("gray", "", "+")
+							else
+								ColourTell("green", "", "+")
+							end
+							
+						end
+						
+						if data.noexp then
+							ColourTell("gray", "", piece.amt)
+						else
+							if #data.exp == 1 then
+								NoteStyle(2)
+								ColourTell("#00FFC0", "", piece.amt)
+								NoteStyle(0)
+							else
+								if i > 1 and GetVariable("bonusexp_pct") == "true" then
+									ColourTell(piece.color, "", math.floor(100 * piece.amt / data.exp[1].amt) .. "%")
+								else
+									ColourTell(piece.color, "", piece.amt)
+								end
+							end
+						end
+						
+						total = total + piece.amt
+						
+						needs_plus = true
+					end
+					
+					if #data.exp > 1 then
+						if data.noexp then
+							ColourTell("gray", "", "=")
+							ColourTell("gray", "", total)
+						else
+							ColourTell("green", "", "=")
+							NoteStyle(2)
+							ColourTell("#00FFC0", "", total)
+							NoteStyle(0)
+						end
+					end
+					
+					if data.noexp then
+						ColourTell("gray", "", " noexp")
+					else
+						ColourTell("silver", "", " exp")
+					end
+					
+					needs_comma = true
+				end
+				
+				if data.pointless then
+					if needs_comma then
+						ColourTell("silver", "", ", ")
+					end
+					
+					ColourTell("silver", "", "no exp (pointless)")
+
+					needs_comma = true
+				end
+				
+				if data.loot_items then
+					if needs_comma then
+						ColourTell("silver", "", ", ")
+					end
+					
+					for i,item in ipairs(data.loot_items) do
+						if i > 1 then
+							ColourTell("silver", "", ", ")
+						end
+						
+						for _,run in ipairs(item.sr) do
+							ColourTell(RGBColourToName(run.textcolour), "", run.text)
+						end
+						
+						if item.crumble then
+							ColourTell("white", "", " => ")
+							ColourTell("yellow", "", item.crumble)
+							ColourTell("silver", "", " gp")
+						end
+					end
+					
+					needs_comma = true
+				end
+
+				if data.gold then
+					if needs_comma then
+						ColourTell("silver", "", ", ")
+					end
+					
+					ColourTell("yellow", "", data.gold)
+					ColourTell("silver", "", " gp")
+					
+					needs_comma = true
+				end
+				
+				if data.tax then
+					if needs_comma then
+						ColourTell("silver", "", ", ")
+					end
+					
+					ColourTell("silver", "", "taxed ")
+					ColourTell("olive", "", data.tax)
+					ColourTell("silver", "", " gp")
+					
+					needs_comma = true
+				end
+				
+				ColourTell("silver", "", ". ")
+			end
+			
+			if data.other_exp then
+				for _,info in ipairs(data.other_exp) do
+					ColourTell("silver", "", info.name .. " gets ")
+					ColourTell("lime", "", info.amt)
+					ColourTell("silver", "", " exp. ")
+				end
+			end
+			
+			if data.split then
+				for _,info in ipairs(data.split) do
+					ColourTell("silver", "", "You split ")
+					ColourTell("yellow", "", info.total)
+					ColourTell("silver", "", " (")
+					ColourTell("yellow", "", info.share)
+					ColourTell("silver", "", ") gold with ")
+					ColourTell("white", "", info.count)
+					if info.count == 1 then
+						ColourTell("silver", "", " other. ")
+					else
+						ColourTell("silver", "", " others. ")
+					end
+				end
+			end
+			
+			if data.other_split then
+				for _,info in ipairs(data.other_split) do
+					ColourTell("silver", "", info.name .. " splits ")
+					ColourTell("yellow", "", info.total)
+					ColourTell("silver", "", " (")
+					ColourTell("yellow", "", info.share)
+					ColourTell("silver", "", ") gold. ")
+				end
+			end
+			
+			if data.daily_exp or data.daily_gold then
+				ColourTell("yellow", "", "DB")
+				ColourTell("silver", "", ": ")
+				if data.daily_exp then
+					ColourTell("yellow", "", data.daily_exp)
+					if data.daily_exp == "1" then
+						ColourTell("silver", "", " exp kill")
+					else
+						ColourTell("silver", "", " exp kills")
+					end
+				end
+				
+				if data.daily_gold then
+					if data.daily_exp then
+						ColourTell("silver", "", ", ")
+					end
+					ColourTell("yellow", "", data.daily_gold)
+					if data.daily_gold == "1" then
+						ColourTell("silver", "", " gold kill")
+					else
+						ColourTell("silver", "", " gold kills")
+					end
+				end
+				ColourTell("silver", "", ". ")
+			end
+			
+			if data.cp then
+				ColourTell("white", "", "CAMPAIGN mob! ")
+			end
+
+			if data.gq then
+				ColourTell("red", "", "GQ mob! ")
+				if data.gq_kills then
+					ColourTell("red", "", "(" .. data.gq_kills .. " left this lvl) ")
+				end
+				if data.gq_qp then
+					ColourTell("red", "", "+" .. data.gq_qp .. " qp. ")
+				end
+			end
+
+			if data.quest then
+				ColourTell("red", "", "QUEST mob! ")
+			end
+			
+			if data.vampire then
+				ColourTell("silver", "", "You drink the corpse. ")
+			end
+			
+			if data.other_vampire then
+				ColourTell("silver", "", data.other_vampire .. " drinks the corpse. ")
+			end
+			
+			Note()
+			
+			if data.sac then
+				ColourTell("teal", "", "You sacrifice ")
+				for i,sac in ipairs(data.sac) do
+					if i > 1 then
+						ColourTell("teal", "", ", ")
+					end
+					
+					for _,sr in ipairs(sac.item) do
+						ColourTell(RGBColourToName(sr.textcolour), "", sr.text)
+					end
+					ColourTell("teal", "", " (")
+					ColourTell("yellow", "", sac.gold)
+					ColourTell("teal", "", " gp)")
+				end
+				ColourTell("teal", "", ". ")
+			
+				Note()
+			end
+			
+			if data.preserve then
+				for _, sr in ipairs(data.preserve) do
+					for _, run in ipairs(sr) do
+						ColourTell(RGBColourToName(run.textcolour), "", run.text)
+					end
+					Note()
+				end
+			end
+		end
+		
+		if group == "lotus" then
+			if name == "lotus_amount" then
+				data.sum = (data.sum or 0) + tonumber(wc[1])
+				data.count = (data.count or 0) + 1
+			elseif name == "lotus_max" then
+				data.max = true
+			end
+			
+			if data.count and data.count > 1 then
+				ColourTell("fuchsia", "", "[")
+				ColourTell("white", "", data.count)
+				ColourTell("fuchsia", "", "] ")
+			end
+			ColourTell("silver", "", "Wow....what a rush!")
+			if data.sum then
+				ColourTell("fuchsia", "", " [")
+				ColourTell("white", "", data.sum)
+				ColourTell("fuchsia", "", "]")
+			end
+			
+			if data.max then
+				ColourTell("silver", "", " (Your concentration is at its peak.)")
+			end
+			
+			Note()
+		end
+        
+        if group == "equip" then
+            if starts_with(name, "remove") or starts_with(name, "equip") then
+                local first, last = string.find(line, wc[1], 1, true)
+                local item_sr = style_run_sub(sr, first, last)
+                local slot
+                if starts_with(name, "remove") then
+                    if name == "remove_as" or name == "remove_from" or name == "remove_around" then
+                        slot = wc[2]
+                    else
+                        slot = remove_from_start(name, "remove_")
+                    end
+                    if not data.remove then
+                        data.remove = {}
+                    end
+                    table.insert(data.remove, {
+                        sr = item_sr,
+                        slot = slot
+                    })
+                elseif starts_with(name, "equip") then
+                    if name == "equip_as" or name == "equip_on" or name == "equip_around" then
+                        slot = wc[2]
+                    else
+                        slot = remove_from_start(name, "equip_")
+                    end
+                    if not data.wear then
+                        data.wear = {}
+                    end
+                    table.insert(data.wear, {
+                        sr = item_sr,
+                        slot = slot
+                    })
+                end
+            end
+        
+            if data.wear and data.remove and #data.wear == 1 and #data.remove == 1 and data.wear[1].slot == data.remove[1].slot then
+                ColourTell("silver", "", "You swap ")
+                duplicate_color_output(data.remove[1].sr, true)
+                ColourTell("silver", "", " for ")
+                duplicate_color_output(data.wear[1].sr, true)
+                ColourNote("silver", "", " (" .. data.remove[1].slot .. ").")
+            else
+                if data.remove then
+                    ColourTell("silver", "", "You remove ")
+                    for i, remove_info in ipairs(data.remove) do
+                        duplicate_color_output(remove_info.sr, true)
+                        ColourTell("silver", "", " (" .. remove_info.slot .. ")")
+                        if i < #data.remove then
+                            if i == #data.remove - 1 then
+                                ColourTell("silver", "", " and ")
+                            else
+                                ColourTell("silver", "", ", ")
+                            end
+                        end
+                    end
+                end
+                if data.wear then
+                    if data.remove then
+                        ColourTell("silver", "", " and wear ")
+                    else
+                        ColourTell("silver", "", "You wear ")
+                    end
+
+                    for i, remove_info in ipairs(data.wear) do
+                        duplicate_color_output(remove_info.sr, true)
+                        ColourTell("silver", "", " (" .. remove_info.slot .. ")")
+                        if i < #data.wear then
+                            if i == #data.wear - 1 then
+                                ColourTell("silver", "", " and ")
+                            else
+                                ColourTell("silver", "", ", ")
+                            end
+                        end
+                    end
+                end
+            
+                if data.remove or data.wear then
+                    ColourTell("silver", "", ".")
+                    Note()
+                end
+            end
+        end
+	
+		if group == "spellup" then
+			data.spellup_items = data.spellup_items or {}
+			table.insert(data.spellup_items, wc[1])
+		
+			if #data.spellup_items == 1 then
+				ColourTell("silver", "", "Queueing spell : ")
+			else
+				ColourTell("silver", "", "Queueing spells : ")
+			end
+			
+			for i, item in ipairs(data.spellup_items) do
+				if i > 1 then
+					ColourTell("silver", "", ", ")
+				end
+				ColourTell("silver", "", item)
+			end
+			
+			ColourTell("silver", "", ".")
+			
+			Note()
+		end
+	
+		if group == "where" then
+			if name == "where_area" then
+				data.name = wc[1]
+			elseif name == "where_creator" then
+				data.creator = wc[1]
+			elseif name == "where_range" then
+				data.range = wc[1]
+			end
+			
+			local color1 = "#00ff80"
+			local color2 = "#ff0080"
+			
+			if data.name then
+				ColourTell(color1, "", "You're in ")
+				ColourTell(color2, "", data.name)
+				ColourTell(color1, "", " ")
+			else
+				ColourTell(color1, "", "Area ")
+			end
+			
+			if data.creator then
+				ColourTell(color1, "", "by ")
+				ColourTell(color2, "", data.creator)
+				ColourTell(color1, "", " ")
+			end
+			
+			if data.range then
+				ColourTell(color1, "", "(")
+				ColourTell(color2, "", data.range)
+				ColourTell(color1, "", ") ")
+			end
+			
+			ColourTell(color1, "", "Players nearby:")
+			
+			Note()
+		end
+	
+		if group == "combat" then
+			if name == "combat_damage" then
+				local crit = (wc[1] == "*")
+				local hits = tonumber(wc[2] or 1) or 1
+				local attacker = wc[3]
+				local damage_type = wc[4]
+				local defender = wc[5]
+				local damage = tonumber(wc[6] or 0) or 0
+				
+				if ends_with(attacker, "'s God") and damage_type == "wrath" then
+					attacker = remove_from_end(attacker, "'s God")
+					damage_type = "God's wrath"
+				end
+				
+				if not data.combat_hits then
+					data.combat_hits = {}
+				end
+				if not data.combat_hits[attacker] then
+					data.combat_hits[attacker] = {}
+				end
+				local defenders = data.combat_hits[attacker]
+				if not defenders[defender] then
+					defenders[defender] = {}
+				end
+				local types = defenders[defender]
+				if not types[damage_type] then
+					types[damage_type] = {
+						hits = 0,
+						damage = 0,
+						crit = false,
+					}
+				end
+				hit = types[damage_type]
+				hit.hits = hit.hits + hits
+				hit.damage = hit.damage + damage
+				hit.crit = hit.crit or crit
+			elseif name == "combat_immune" then
+				local attacker = "You"
+				local hits = tonumber(wc[1] or 1) or 1
+				local defender = wc[2]
+				local damage_type = wc[3]
+				
+				if not data.combat_hits then
+					data.combat_hits = {}
+				end
+				if not data.combat_hits[attacker] then
+					data.combat_hits[attacker] = {}
+				end
+				local defenders = data.combat_hits[attacker]
+				if not defenders[defender] then
+					defenders[defender] = {}
+				end
+				local types = defenders[defender]
+				if not types[damage_type] then
+					types[damage_type] = {
+						hits = 0,
+						damage = 0,
+						crit = false,
+						immune = true,
+					}
+				end
+				hit = types[damage_type]
+				hit.hits = hit.hits + hits
+			elseif starts_with(name, "combat_preserve_") then
+				if not data.preserve then
+					data.preserve = {}
+				end
+				table.insert(data.preserve, sr)
+			elseif starts_with(name, "combat_force_") then
+				if not data.force then
+					data.force = {}
+				end
+				table.insert(data.force, sr)
+			end
+			
+			if data.force then
+				for _,sr in ipairs(data.force) do
+					duplicate_color_output(sr)
+				end
+			end
+
+			if data.preserve and (GetVariable("preserve") == "true" or (not data.combat_hits and gmcp("char.status.enemy") == "")) then
+				for _,sr in ipairs(data.preserve) do
+					duplicate_color_output(sr)
+				end
+			end
+			
+			local TotalDamageWidth = 9
+			local AttackerWidth = 30
+			local TypeWidth = 40
+			local DefenderWidth = 30
+			
+			local width = GetOption("wrap_column")
+			if width then
+				width = width - TotalDamageWidth
+				width = width - TypeWidth
+				AttackerWidth = math.floor(width * 2 / 3)
+				if AttackerWidth < 12 then
+					AttackerWidth = 12
+				end
+				if AttackerWidth > 30 then
+					AttackerWidth = 30
+				end
+				width = width - AttackerWidth - 1
+				DefenderWidth = width
+				if DefenderWidth < 12 then
+					DefenderWidth = 12
+				end
+			end
+			
+			if data.combat_hits then
+				local others = {}
+				local others_total = 0
+				for attacker, defenders in pairs(data.combat_hits) do
+					attacker = remove_from_end(attacker, "'s")
+					attacker = remove_from_end(attacker, "'")
+					local attacker_player_info = get_player_info(attacker)
+					attacker = remove_articles(attacker)
+					
+					if attacker == "Your" then
+						attacker = "You"
+					end
+					
+					for defender, types in pairs(defenders) do
+						local defender_player_info = get_player_info(defender)
+						defender = remove_articles(defender)
+						
+						local total = 0
+						local immune = false
+						for damage_type, hit in pairs(types) do
+							total = total + hit.damage
+							if hit.immune then
+								immune = true
+							end
+						end
+							
+						if attacker ~= "You" and defender ~= "You" and GetVariable("combat_others") ~= "full" then
+							if GetVariable("combat_others") == "list" then
+								others[attacker] = true
+								others[defender] = true
+								others_total = others_total + total
+							end
+						else
+							local color1 -- Important info
+							local color2 -- Garnish
+							local color3 -- Damage number
+							local color4 -- Non-standard damage noun
+							if attacker == "You" then
+								if total == 0 and immune then
+									color1 = "white"
+									color2 = "silver"
+									color3 = "white"
+									color4 = "white"
+								else
+									color1 = "#00c000"
+									color2 = "#006020"
+									color3 = "#80ff80"
+									color4 = "#00c080"
+									
+									if defender_player_info then
+										defender = defender .. " (" .. (defender_player_info.level or "???") .. " / T" .. (defender_player_info.tier or "?") .. ")"
+										color1 = "#20F0C0"
+									end
+								end
+							elseif defender == "You" then
+								color1 = "#ff4040"
+								color2 = "maroon"
+								color3 = "#ffa0a0"
+								color4 = "#ff40a0"
+								if attacker_player_info then
+									attacker = attacker .. " (" .. (attacker_player_info.level or "???") .. " / T" .. (attacker_player_info.tier or "?") .. ")"
+									color1 = "#ffa000"
+								end
+							
+							else
+								if attacker_player_info then
+									attacker = attacker .. " (" .. (attacker_player_info.level or "???") .. " / T" .. (attacker_player_info.tier or "?") .. ")"
+								end
+								if defender_player_info then
+									defender = defender .. " (" .. (defender_player_info.level or "???") .. " / T" .. (defender_player_info.tier or "?") .. ")"
+								end
+							
+								color1 = "#c0c000"
+								color2 = "olive"
+								color3 = "#ffff80"
+								color4 = "#c0c080"
+							end
+							
+
+							local total_str
+							if total == 0 and immune then
+								total_str = "Immune"
+							else
+								total_str = tostring(total)
+							end
+							ColourTell(color2, "", "[")
+							ColourTell(color3, "", total_str)
+							ColourTell(color2, "", "]")
+							
+							tell_buffer(2 + string.len(total_str), 9, color1)
+							
+							if attacker ~= "You" then
+								color_tell_fixed(color1, AttackerWidth, attacker)
+								ColourTell(color1, "", " ")
+							elseif defender ~= "You" then
+								color_tell_fixed(color1, AttackerWidth, defender)
+								ColourTell(color1, "", " ")
+							end
+
+							local length = 0
+							for damage_type, hit in pairs(types) do
+								if hit.crit then
+									length = length + 1
+									ColourTell(color2, "", "*")
+								end
+								
+								length = length + string.len(tostring(hit.hits or 1))
+								ColourTell(color3, "", hit.hits or 1)
+								
+								length = length + 1
+								ColourTell(color2, "", "x")
+								
+								local damage_color
+								if damage_nouns[damage_type] then
+									damage_color = color1
+								else
+									damage_color = color4
+								end
+
+								length = length + string.len(damage_type or "damage")
+								ColourTell(damage_color, "", upper_first(damage_type) or "Damage")
+								
+								length = length + 1
+								ColourTell(color2, "", "/")
+								
+								if hit.immune then
+									length = length + string.len("immune")
+									ColourTell("white", "", "immune")
+								else
+									length = length + string.len(tostring(hit.damage or 0))
+									ColourTell(color3, "", hit.damage or 0)
+								end
+								
+								length = length + 1
+								ColourTell(color1, "", " ")
+							end
+							tell_buffer(length, TypeWidth, color1)
+							
+							if attacker ~= "You" and defender ~= "You" then
+								color_tell_fixed(color1, DefenderWidth, defender)
+							end
+
+							Note()
+						end
+					end
+				end
+				
+				if GetVariable("combat_others") == "list" then
+					local color1 = "#c0c000"
+					local color2 = "olive"
+					local color3 = "#ffff80"
+					
+					local total_str = tostring(others_total)
+					local others_list = {}
+					for other in pairs(others) do
+						table.insert(others_list, other)
+					end
+					if #others_list > 0 then
+						ColourTell(color2, "", "[")
+						ColourTell(color3, "", total_str)
+						ColourTell(color2, "", "]")
+						tell_buffer(2 + string.len(total_str), 9, color1)
+						
+						table.sort(others_list)
+						for i,other in ipairs(others_list) do
+							local player_info = get_player_info(other)
+							if player_info then
+								other = other .. " (" .. (player_info.level or "???") .. " / T" .. (player_info.tier or "?") .. ")"
+							end
+						
+							if i == 1 then
+								ColourTell(color1, "", other)
+							else
+								ColourTell(color2, "", " / ")
+								ColourTell(color1, "", other)
+							end
+						end
+						Note()
+					end
+				end
+				
+				--if data.combat_hits then
+				--	local info = get_line_info()
+				--	DeleteLines(1)
+				--	for _, part in ipairs(info.sr) do
+				--		--Note(part.text)
+				--		--Note(RGBColourToName(part.textcolour))
+				--		Hyperlink(" ", part.text, "spamreduce combine combat", RGBColourToName(part.textcolour), "", false)
+				--	end
+				--	Note()
+				--end
+			end
+		end
+		
+		options[group].end_line = GetLineCount()
+	end
+	
+	return true
+end
+
+function duplicate_color_output(sr, no_endline)
+	for _, v in ipairs (sr) do
+		if v.action and v.action ~= "" then
+			Hyperlink(v.action, v.text, v.hint, RGBColourToName (v.textcolour), RGBColourToName (v.backcolour), actiontype == 2)
+		else
+			ColourTell (RGBColourToName (v.textcolour), RGBColourToName (v.backcolour), v.text)
+		end
+	end
+    
+    if not no_endline then
+        Note ()
+    end
+end
+
+function style_run_sub(sr, first, last)
+    local used = 0
+    local ret = {}
+    for _, run in ipairs(sr) do
+        local l = string.len(run.text)
+        local nextused = used + l
+        if used < last and nextused >= first then
+            local copy = {}
+            for k, v in pairs(run) do
+                copy[k] = v
+            end
+            
+            if nextused > last then
+                copy.text = string.sub(copy.text, 1, l - (nextused-last))
+            end
+            
+            if used < first then
+                copy.text = string.sub(copy.text, first - used)
+            end
+            
+            table.insert(ret, copy)
+        end
+        used = nextused
+    end
+    
+    return ret
+end
+
+function get_wildcard_sr(line, wc, sr, index)
+    local p1, p2 = string.find(line, wc[index], 1, true)
+    
+    if not p1 or not p2 then
+        return nil
+    end
+    
+    return style_run_sub(sr, p1, p2)
+end
+
+function delete_nonwrap_lines(count)
+	for failsafe = 1, 100 do
+		if get_line_info(GetLinesInBufferCount()-1).newline then
+			count = count - 1
+		end
+		
+		DeleteLines(1)
+
+		if count <= 0 then
+			return
+		end
+		
+	end
+end
+
+function get_line_info(line)
+	line = line or GetLinesInBufferCount()-1
+	local info = {}
+	
+	info.text = GetLineInfo(line, 1)
+	info.is_note = GetLineInfo(line, 4)
+	info.is_input = GetLineInfo(line, 5)
+	info.sr = GetStyleInfo(line, 0)
+	info.newline = GetLineInfo(line, 3)
+	
+	return info
+end
+
+function color_tell_fixed(color, width, str)
+	ColourTell(color, "", string.format("%-"..width.."."..width.."s", str))
+end
+
+function tell_buffer(length, buffer_length, color)
+	if length < buffer_length then
+		ColourTell(color, "", string.format("%" .. (buffer_length-length) .. "s", ""))
+	end
+end
+
+function starts_with(a, b)
+	return string.sub(a, 1, string.len(b)) == b
+end
+
+function remove_from_start(a, b)
+	if starts_with(a, b) then
+		return string.sub(a, string.len(b)+1)
+	else
+		return a
+	end
+end
+
+function ends_with(a, b)
+	return string.sub(a, string.len(a)-string.len(b)+1, string.len(a)) == b
+end
+
+function remove_from_end(a, b)
+	if ends_with(a, b) then
+		return string.sub(a, 1, string.len(a)-string.len(b))
+	else
+		return a
+	end
+end
+
+function split(inputstr, sep)
+	if sep == nil then
+		sep = "%s"
+	end
+	local t={}
+	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+		table.insert(t, str)
+	end
+
+	if t[1] == nil then
+		t[1] = ""
+	end
+
+	return t
+end
+
+function upper_first(name)
+	return string.upper(string.sub(name, 1, 1)) .. string.sub(name, 2)
+end
+
+function remove_articles(name)
+	local lower_name = string.lower(name)
+	for _,article in pairs({"a ", "an ", "the "}) do
+		if starts_with(lower_name, article) then
+			return upper_first(string.sub(name, string.len(article)+1))
+		end
+	end
+	
+	return upper_first(name)
+end
+
+damage_nouns = {
+	['acidic bite'   ] = 'Acid',
+	['digestion'     ] = 'Acid',
+	['slime'         ] = 'Acid',
+	['air'           ] = 'Air', 
+	['beating'       ] = 'Bash',
+	['blast'         ] = 'Bash',
+	['charge'        ] = 'Bash',
+	['crush'         ] = 'Bash',
+	['hit'           ] = 'Bash',
+	['pound'         ] = 'Bash',
+	['punch'         ] = 'Bash',
+	['slap'          ] = 'Bash',
+	['smash'         ] = 'Bash',
+	['suction'       ] = 'Bash',
+	['thwack'        ] = 'Bash',
+	['chill'         ] = 'Cold',
+	['freezing bite' ] = 'Cold',
+	['earth'         ] = 'Earth',
+	['shock'         ] = 'Electric',
+	['shocking bite' ] = 'Electric',
+	['friction'      ] = 'Energy',
+	['wrath'         ] = 'Energy',
+	['flame'         ] = 'Fire',
+	['flaming bite'  ] = 'Fire',
+	['divine power'  ] = 'Holy',
+	['light'         ] = 'Light',
+	['magic'         ] = 'Magic',
+	['mental energy' ] = 'Mental',
+	['mind force'    ] = 'Mental',
+	['decaying touch'] = 'Negative',
+	['life drain'    ] = 'Negative',
+	['bite'          ] = 'Pierce',
+	['chomp'         ] = 'Pierce',
+	['peck'          ] = 'Pierce',
+	['pierce'        ] = 'Pierce',
+	['scratch'       ] = 'Pierce',
+	['stab'          ] = 'Pierce',
+	['sting'         ] = 'Pierce',
+	['thrust'        ] = 'Pierce',
+	['chop'          ] = 'Slash',
+	['claw'          ] = 'Slash',
+	['cleave'        ] = 'Slash',
+	['grep'          ] = 'Slash',
+	['slash'         ] = 'Slash',
+	['slice'         ] = 'Slash',
+	['whip'          ] = 'Slash',
+	['shadow'        ] = 'Shadow',
+	['wail'          ] = 'Sonic',
+	['water blast'   ] = 'Water'
+}
+
+
+damage_verbs = {
+	"misses",
+	"tickles",
+	"bruises",
+	"scratches",
+	"grazes",
+	"nicks",
+	"scars",
+	"hits",
+	"injures",
+	"wounds",
+	"mauls",
+	"maims",
+	"mangles",
+	"mars",
+	"LACERATES",
+	"DECIMATES",
+	"DEVASTATES",
+	"ERADICATES",
+	"OBLITERATES",
+	"EXTIRPATES",
+	"INCINERATES",
+	"MUTILATES",
+	"DISEMBOWELS",
+	"MASSACRES",
+	"DISMEMBERS",
+	"RENDS",
+	"- BLASTS -",
+	"-= DEMOLISHES =-",
+	"** SHREDS **",
+	"**** DESTROYS ****",
+	"***** PULVERIZES *****",
+	"-=- VAPORIZES -=-",
+	"<-==-> ATOMIZES <-==->",
+	"<-:-> ASPHYXIATES <-:->",
+	"<-*-> RAVAGES <-*->",
+	"<>*<> FISSURES <>*<>",
+	"<*><*> LIQUIDATES <*><*>",
+	"<*><*><*> EVAPORATES <*><*><*>",
+	"<-=-> SUNDERS <-=->",
+	"<=-=><=-=> TEARS INTO <=-=><=-=>",
+	"<->*<=> WASTES <=>*<->",
+	"<-+-><-*-> CREMATES <-*-><-+->",
+	"<*><*><*><*> ANNIHILATES <*><*><*><*>",
+	"<--*--><--*--> IMPLODES <--*--><--*-->",
+	"<-><-=-><-> EXTERMINATES <-><-=-><->",
+	"<-==-><-==-> SHATTERS <-==-><-==->",
+	"<*><-:-><*> SLAUGHTERS <*><-:-><*>",
+	"<-*-><-><-*-> RUPTURES <-*-><-><-*->",
+	"<-*-><*><-*-> NUKES <-*-><*><-*->",
+	"-<[=-+-=]<:::<>:::> GLACIATES <:::<>:::>[=-+-=]>-",
+	"<-=-><-:-*-:-><*--*> METEORITES <*--*><-:-*-:-><-=->",
+	"<-:-><-:-*-:-><-*-> SUPERNOVAS <-*-><-:-*-:-><-:->",
+	"does UNSPEAKABLE things to",
+	"does UNTHINKABLE things to",
+	"does UNIMAGINABLE things to",
+	"does UNBELIEVABLE things to",
+    "lacerates",
+    "decimates",
+    "devastates",
+    "eradicates",
+    "obliterates",
+    "extirpates",
+    "incinerates",
+    "mutilates",
+    "disembowels",
+    "massacres",
+    "dismembers",
+    "rends",
+    "blasts",
+    "demolishes",
+    "shreds",
+    "destroys",
+    "pulverizes",
+    "vaporizes",
+    "atomizes",
+    "asphyxiates",
+    "ravages",
+    "fissures",
+    "liquidates",
+    "evaporates",
+    "sunders",
+    "tears into",
+    "wastes",
+    "cremates",
+    "annihilates",
+    "implodes",
+    "exterminates",
+    "shatters",
+    "slaughters",
+    "ruptures",
+    "nukes",
+    "glaciates",
+    "meteorites",
+    "supernovas",
+    "does unspeakable things to",
+    "does unthinkable things to",
+    "does unimaginable things to",
+    "does unbelievable things to",
+}
+
+function regex_escape_string(s)
+	local e = ""
+	for i=1,string.len(s) do
+		local c = string.sub(s, i, i)
+		if regex_special_character(c) then
+			e = e .. "\\" .. c
+		else
+			e = e .. c
+		end
+	end
+
+	return e
+end
+
+function regex_special_character(c)
+	local special_chars = "[\\^$.|?*+()"
+
+	for i=1,string.len(special_chars) do
+		if c == string.sub(special_chars, i, i) then
+			return true
+		end
+	end
+
+	return false
+end
+
+function damage_verb_regex()
+	local regex = ""
+	for i,verb in ipairs(damage_verbs) do
+		if i > 1 then
+			regex = regex .. "|"
+		end
+		regex = regex .. regex_escape_string(verb)
+	end
+	
+	return regex
+end
+
+function get_damage_regex()
+	return string.format(
+		"^(\\*?)(?:\\[(\\d+)\\] )?(Your|(?:.*(?:'s|s'))?) (.*)? (?:%s) (.*)[\\.!] \\[(\\d+)\\]\\*?$",
+		damage_verb_regex()
+	)
+end
+
+function none()
+end
+
+function ignore()
+end
+
+AddTrigger("combat_damage", get_damage_regex(), "", eOmitFromOutput + eTriggerRegularExpression, 0, 0, "")
+SetTriggerOption("combat_damage", "group", "combat")
+SetTriggerOption("combat_damage", "omit_from_output", "y")
+SetTriggerOption("combat_damage", "script", "combine")
+
+
+local function regex_escape_line(str)
+    return "^" .. str:gsub("([%(%)%.%+%-%*%?%[%^%$])", "\\%1") .. "$"
+end
+
+-------------- Suppress Triggers --------------
+
+local SuppressAllSequence = 12
+local HeaderSequence = 13
+local FooterSequence = 11
+
+local suppress_trigger_index = 0
+local suppress_triggers_headers = {}
+
+function suppress_triggers_for_all_tags()
+    suppress_triggers_between_tags("<MAPSTART>", "<MAPEND>")
+    suppress_triggers_between_tags("{BIGMAP}", "{/BIGMAP}")
+    suppress_triggers_between_tags("{edit}", "{/edit}")
+    suppress_triggers_between_tags("{equip}", "{/equip}")
+    suppress_triggers_between_tags("{help}", "{/help}")
+    suppress_triggers_between_tags("{inventory}", "{/inventory}")
+    suppress_triggers_between_tags("{rdesc}", "{/rdesc}")
+    suppress_triggers_between_tags("{score}", "{/score}")
+    suppress_triggers_between_tags("{roomchars}", "{/roomchars}")
+    suppress_triggers_between_tags("{scan}", "{/scan}")
+end
+
+-- Create the trigger to suppress all triggers between the header and footer
+-- @param header The literal header string to match
+-- @param footer The literal footer string to match
+function suppress_triggers_between_tags(header, footer)
+    suppress_trigger_index = suppress_trigger_index + 1
+
+    -- Add the pattern for the header
+    local match = GetTriggerOption("suppress_triggers_header", "match")
+    if match then
+        local combined = match .. "|" .. regex_escape_line(header)
+        SetTriggerOption("suppress_triggers_header", "match", combined)
+    else
+        AddTriggerEx("suppress_triggers_header", regex_escape_line(header), "", trigger_flag.Enabled + trigger_flag.Replace + trigger_flag.RegularExpression + trigger_flag.Temporary, -1, 0, "", "suppress_triggers_header", 0, HeaderSequence)
+    end
+
+    -- Create a trigger to suppress all triggers if it doesn't exist
+    AddTriggerEx("suppress_all_triggers", "*", "", trigger_flag.Replace + trigger_flag.Temporary, -1, 0, "", "", 0, SuppressAllSequence)
+
+    -- Create the trigger for the footer
+    local footer_name = "suppress_triggers_footer_" .. suppress_trigger_index
+    AddTriggerEx(footer_name, regex_escape_line(footer), "", trigger_flag.Replace + trigger_flag.RegularExpression + trigger_flag.Temporary, -1, 0, "", "suppress_triggers_footer", 0, FooterSequence)
+
+    -- Store data for the header trigger
+    suppress_triggers_headers[header] = {
+        footer = footer,
+        footer_name = footer_name,
+    }
+end
+
+-- When any of the headers are matched, find the corresponding footer
+-- and enable it. Also enable the trigger to suppress all triggers.
+function suppress_triggers_header(name, line)
+    local data = suppress_triggers_headers[line]
+
+    if not data then
+        ColourNote("red", "", "Error suppressing triggers. Invalid header line: " .. line)
+        EnableTrigger("suppress_all_triggers", false)
+        return
+    end
+
+    EnableTrigger(data.footer_name, true)
+    EnableTrigger("suppress_all_triggers", true)
+    EnableTrigger("suppress_triggers_header", false)
+end
+
+-- When the footer is matched, disable the footer and the trigger to
+-- suppress all triggers. Also enable the trigger to match the headers.
+function suppress_triggers_footer(name)
+    EnableTrigger(name, false)
+    EnableTrigger("suppress_all_triggers", false)
+    EnableTrigger("suppress_triggers_header", true)
+end
+]]>
+</script>
+
+
+</muclient>

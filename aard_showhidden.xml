@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Showhidden"
+   author="Sath"
+   id="c33741b6bbd64209804090a7"
+   language="Lua"
+   purpose="Allows you to see all lines of output from the MUD."
+   save_state="y"
+   date_written="2021-03-28 12:00:00"
+   requires="4.73"
+   version="1.0"
+   >
+<description trim="y">
+<![CDATA[
+** This plugin allows you to see all lines of output from the MUD.
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+<aliases>
+	<alias
+	   match="showhidden help"
+	   enabled="y"
+	   script="help"
+	   sequence="100"
+	/>
+
+	<alias
+	   match="showhidden"
+	   enabled="y"
+	   script="toggle"
+	   sequence="100"
+	/>
+
+	<alias
+	   match="showhidden enable"
+	   enabled="y"
+	   script="enable"
+	   sequence="100"
+	/>
+
+	<alias
+	   match="showhidden disable"
+	   enabled="y"
+	   script="disable"
+	   sequence="100"
+	/>
+</aliases>
+
+<triggers>
+	<trigger
+	   enabled="n"
+	   group="showhidden"
+	   match="*"
+	   script="showhidden_line"
+	   sequence="100"
+	   omit_from_output="y"
+	/>
+</triggers>
+
+<script>
+<![CDATA[
+
+require("gmcphelper")
+
+function help()
+	local help_lines= {
+		{"showhidden help", "Display this help file."},
+		{"showhidden", "Toggles showing all hidden lines."},
+	}
+
+	ColourNote("white", "", "[Showhidden] Commands")
+	for _,line in ipairs(help_lines) do
+		ColourTell("yellow", "", string.format("%-25s", line[1]))
+		ColourTell("silver", "", line[2])
+		Note()
+	end
+end
+
+function enable()
+	SetVariable("enabled", "true")
+	EnableTriggerGroup("showhidden", true)
+	ColourNote("lime", "", "[Showhidden] Enabled.")
+end
+
+function disable()
+	SetVariable("enabled", "false")
+	EnableTriggerGroup("showhidden", false)
+	ColourNote("red", "", "[Showhidden] Disabled.")
+end
+
+function toggle()
+	if GetVariable("enabled") == "true" then
+		disable()
+	else
+		enable()
+	end
+end
+
+function OnPluginInstall()
+	if GetVariable("enabled") == "true" then
+		enable()
+	end
+end
+
+function showhidden_line(name, line, wc, sr)
+	duplicate_color_output(sr)
+end
+
+function duplicate_color_output(sr)
+	for _, v in ipairs (sr) do
+		if v.action and v.action ~= "" then
+			Hyperlink(v.action, v.text, v.hint, RGBColourToName (v.textcolour), RGBColourToName (v.backcolour), actiontype == 2)
+		else
+			ColourTell (RGBColourToName (v.textcolour), RGBColourToName (v.backcolour), v.text)
+		end
+	end
+	
+	Note()
+end
+
+]]>
+</script>
+
+
+</muclient>

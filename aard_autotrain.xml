@@ -1,0 +1,868 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Autotrain"
+   author="Sath"
+   id="d887e2921d344e1a90cc2332"
+   language="Lua"
+   purpose="Automatically train according to custom training priorities"
+   save_state="y"
+   date_written="2021-06-01 11:00:00"
+   requires="2.0"
+   version="1.001"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+<aliases>
+	<alias
+	   match="autotrain help"
+	   enabled="y"
+	   script="help"
+	   sequence="100"
+	/>
+
+	<alias
+		match="autotrain"
+		enabled="y"
+		script="autotrain"
+		sequence="100"
+	/>
+	
+	<alias
+		match="autotrain noprac"
+		enabled="y"
+		script="autotrain_noprac"
+		sequence="100"
+	/>
+
+	<alias
+		match="autotrain priorities"
+		enabled="y"
+		script="autotrain_priorities"
+		sequence="100"
+	/>
+	
+	<alias
+		match="autotrain reset"
+		enabled="y"
+		script="autotrain_reset_alias"
+		sequence="100"
+	/>
+
+	<alias
+		match="autotrain cap"
+		enabled="y"
+		script="autotrain_get_cap"
+		sequence="100"
+	/>
+
+	<alias
+		match="^autotrain cap (\d+)$"
+		regexp="y"
+		enabled="y"
+		script="autotrain_set_cap"
+		sequence="100"
+	/>
+	
+	<alias
+		match="autotrain quiet"
+		enabled="y"
+		script="autotrain_quiet"
+		sequence="100"
+	/>
+	
+	<alias
+		match="autotrain balanced"
+		enabled="y"
+		script="autotrain_balanced"
+		sequence="100"
+	/>
+	
+	<alias
+		match="autotrain tierstat"
+		enabled="y"
+		script="autotrain_tierstat"
+		sequence="100"
+	/>	
+</aliases>
+
+
+<triggers>
+	<trigger
+		enabled="n"
+		match="^(.{13})\: +(\d+) +(-?\d+) +(-?\d+) +(-?\d+) +(\d+) +(\d+)(?: +(\d+))?\*?$"
+		regexp="y"
+		script="train_line"
+		sequence="100"
+		group="train_body"
+	/>
+	
+	<trigger
+		enabled="n"
+		match="^(.{14})\: +(\d+) +(\d+) +(\d+) +(\d+) +(\d+) +(\d+) +(\d+)$"
+		regexp="y"
+		script="stats_line"
+		sequence="100"
+		group="stats_body"
+	/>
+	
+	<trigger
+		enabled="n"
+		match="^You have (\d+) points? of potential\.$"
+		regexp="y"
+		script="potential_amount"
+		sequence="100"
+		name="potential_amount"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   match="^\* Remort transformation complete\!$"
+	   regexp="y"
+	   script="autotrain_reset"
+	   sequence="100"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   match="-[*]=--=[+]=--=[*]=--=[+]=--=[ AARDWOLF CLASSES ]=--=[+]=--=[*]=--=[+]=--=[*]-"
+	   script="autotrain_reset"
+	   sequence="100"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   match="You now have a * cost reduction when training *."
+	   script="autotrain_reset"
+	   sequence="100"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   match="You allocate your wish stat to a cost reduction when training *."
+	   script="autotrain_reset"
+	   sequence="100"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   match="You spend * quest points to increase your potential to *."
+	   script="potential_buy"
+	   sequence="100"
+	/>
+</triggers>
+
+<script>
+<![CDATA[
+require "gmcphelper"
+require "json"
+
+Stats = {
+	int = true,
+	wis = true,
+	luck = true,
+	str = true,
+	dex = true,
+	con = true,
+}
+
+priorities = GetVariable("priorities")
+
+if GetVariable("train_mods") then
+	train_mods = json.decode(GetVariable("train_mods"))
+end
+
+if GetVariable("potential") then
+	potential = tonumber(GetVariable("potential"))
+end
+
+if GetVariable("class_bonuses") then
+	class_bonuses = json.decode(GetVariable("class_bonuses"))
+end
+
+function help()
+	ColourNote("white", "", "[Autotrain] by Sath")
+	ColourNote("white", "", "Example priorities:")
+	ColourNote("silver", "", "  int 3")
+	ColourNote("silver", "", "  luck 1")
+	ColourNote("silver", "", "  con 1")
+	ColourNote("silver", "", "  wis 1")
+	ColourNote("silver", "", "  str 1")
+	ColourNote("silver", "", "  dex 1")
+	ColourNote("silver", "", "  ")
+	ColourNote("silver", "", "  balanced")
+	ColourNote("silver", "", "    wis 2")
+	ColourNote("silver", "", "    luck 2")
+	ColourNote("silver", "", "  end")
+	ColourNote("silver", "", "  ")
+	ColourNote("silver", "", "  int 4")
+	ColourNote("silver", "", "  str 2")
+	ColourNote("silver", "", "  dex 2")
+	Note()
+	
+	ColourNote("white", "", "Definitions:")
+	ColourTell("silver", "", "  * Each ")
+	ColourTell("aqua", "", "priority")
+	ColourTell("silver", "", " is a line consisting of a stat to train, and a ")
+	ColourTell("aqua", "", "limit")
+	ColourTell("silver", "", " on the number of trains per stat.")
+	Note()
+	ColourTell("silver", "", "  * A ")
+	ColourTell("aqua", "", "priority")
+	ColourTell("silver", "", " is considered ")
+	ColourTell("aqua", "", "trainable")
+	ColourTell("silver", "", " if the stat isn't already at its max, and if the current number of trains required to train that stat is lower than the specified ")
+	ColourTell("aqua", "", "limit")
+	ColourTell("silver", "", ".")
+	Note()
+	ColourTell("silver", "", "  * A ")
+	ColourTell("aqua", "", "balanced group")
+	ColourTell("silver", "", " is a grouping of ")
+	ColourTell("aqua", "", "priorities")
+	ColourTell("silver", "", ", surrounded by ")
+	ColourTell("aqua", "", "balanced")
+	ColourTell("silver", "", " and ")
+	ColourTell("aqua", "", "end")
+	ColourTell("silver", "", ".")
+	Note()
+	Note()
+	
+	ColourTell("white", "", "Algorithm:")
+	ColourTell("silver", "", " To ")
+	ColourTell("aqua", "", "autotrain")
+	ColourTell("silver", "", ", the algorithm repeatedly scans the ")
+	ColourTell("aqua", "", "priorities")
+	ColourTell("silver", "", " from top to bottom, looking for the first ")
+	ColourTell("aqua", "", "priority")
+	ColourTell("silver", "", " which is ")
+	ColourTell("aqua", "", "trainable")
+	ColourTell("silver", "", ". If the ")
+	ColourTell("aqua", "", "priority")
+	ColourTell("silver", "", " is part of a ")
+	ColourTell("aqua", "", "balanced group")
+	ColourTell("silver", "", ", then the algorithm will choose whichever of the ")
+	ColourTell("aqua", "", "trainable priorities")
+	ColourTell("silver", "", " in that ")
+	ColourTell("aqua", "", "balanced group")
+	ColourTell("silver", "", " has the lowest trained amount.")
+	Note()
+	Note()
+
+	local help_lines= {
+		{"autotrain help", "Display this help file."},
+		{"autotrain priorities", "Edit your training priorities."},
+		{"autotrain", "Train according to your priorities"},
+		{"autotrain noprac", "Autotrain, but don't convert practices."},
+		{"autotrain reset", "Reset the plugin's knowledge about your train modifiers/potential/class bonuses."},
+		{"autotrain cap <amount>", "Sets the maximum stat value that will be autotrained."},
+		{"autotrain cap", "View the current autotrain cap."},
+		{"autotrain quiet", "Toggles quiet mode for the 'autotrain' command."},
+		{"autotrain balanced", "Toggles balanced mode (each group of adjacent priorities with equal limits is treated as a balanced group)."},
+        {"autotrain tierstat", "Requires tierstats to be set before autotraining."},
+	}
+	
+	ColourNote("white", "", "[Autotrain] Commands")
+	for _,line in ipairs(help_lines) do
+		ColourTell("yellow", "", string.format("%-24s", line[1]))
+		ColourTell("silver", "", line[2])
+		Note()
+	end
+end
+
+function autotrain_reset_alias()
+	ColourNote("white", "", "[Autotrain] Cleared stat mods/potential/class bonuses.")
+	autotrain_reset()
+end
+
+function autotrain_reset()
+	train_mods = nil
+	DeleteVariable("train_mods")
+	potential = nil
+	DeleteVariable("potential")
+	class_bonuses = nil
+	DeleteVariable("class_bonuses")
+end
+
+function autotrain_priorities()
+	local new_priorities = utils.editbox ("Set Autotrain Priorities", "Stat Trains", priorities or "wis 1\r\ncon 1\r\nluck 1\r\nint 1\r\nstr 1\r\ndex 1")
+	if new_priorities then
+		if get_priority_list(new_priorities) then			
+			priorities = new_priorities
+			SetVariable("priorities", priorities)
+			ColourNote("lime", "", "[Autotrain] Successfully edited training priorities.")
+		end
+	end
+end
+
+function split(inputstr, sep)
+	if sep == nil then
+		sep = "%s"
+	end
+	local t={}
+	for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+		table.insert(t, str)
+	end
+
+	if t[1] == nil then
+		t[1] = ""
+	end
+
+	return t
+end
+
+function get_priority_list(priorities)
+	local ret = {}
+	local line_list = split(priorities, "\r\n")
+	local group_number = 0
+	local current_group
+	local priority_list = {}
+
+	for line,priority in ipairs(line_list) do
+		priority = Trim(priority)
+		if priority == "" then
+			-- Nothing
+		elseif priority == "balanced" then
+			if current_group then
+				ColourNote("red", "", "[Autotrain] Error: nested balanced group at line " .. line)
+				return
+			end
+			
+			group_number = group_number + 1
+			current_group = group_number
+		elseif priority == "end" then
+			if not current_group then
+				ColourNote("red", "", "[Autotrain] Error: no balanced group to end at line " .. line)
+				return
+			end
+			
+			current_group = nil
+		else
+
+			local parts = split(priority, " ")
+			if #parts ~= 2 then
+				ColourNote("red", "", "[Autotrain] Bad priority at line " .. line .. ": '" .. priority .. "'")
+				return
+			end
+			
+			local stat = parts[1]
+			local trains = tonumber(parts[2])
+			
+			if not Stats[stat] then
+				ColourNote("red", "", "[Autotrain] Invalid stat at line " .. line .. ": " .. stat)
+				return
+			end
+			
+			if not trains or trains <= 0 then
+				ColourNote("red", "", "[Autotrain] Invalid train threshold at line " .. line .. ": " .. trains)
+				return
+			end
+			
+			table.insert(priority_list, {
+				stat = stat,
+				trains = trains,
+				balanced_group = current_group
+			})
+		end
+	end
+	
+	return priority_list
+end
+
+function autotrain()
+	noprac = false
+	try_autotrain()
+end
+
+function autotrain_noprac()
+	noprac = true
+	try_autotrain()
+end
+
+function try_autotrain()
+	if not priorities then
+		ColourNote("red", "", "[Autotrain] No priorities set. Use 'autotrain priorities' to create a priority list.")
+		return
+	end
+
+	run_autotrain = true
+	if not train_mods then
+		get_train_data()
+		return
+	end
+	if not class_bonuses then
+		get_stats_data()
+		return
+	end
+	if not potential then
+		get_potential()
+		return
+	end
+    
+    if GetVariable("require_tier_stats") and not tier_stats_set() then
+        ColourNote("red", "", "[Autotrain] Can't autotrain until you set your tier stats.")
+        return
+    end
+	
+	perform_autotrain()
+end
+
+function tier_stats_set()
+    if not train_mods then
+        return false
+    end
+    
+    local count = 0
+    for stat, mods in pairs(train_mods) do
+        count = count - (mods.tier or 0)
+    end
+    
+    if count < tonumber(gmcp("char.base.tier")) then
+        return false
+    end
+    
+    return true
+end
+
+function perform_autotrain()
+	run_autotrain = false
+	
+	local level = tonumber(gmcp("char.status.level"))
+	local tier = tonumber(gmcp("char.base.tier"))
+	local pracs = tonumber(gmcp("char.worth.pracs"))
+	local current_trains = tonumber(gmcp("char.worth.trains"))
+    local prac_trains = 0
+	
+	if not noprac then
+		prac_trains = math.floor(pracs / 10)
+		if prac_trains > 0 then
+			current_trains = current_trains + prac_trains
+		end
+	end
+	
+	if level > 200 then
+		level = 200
+	end
+	
+	local current_stats = get_current_trained()
+	-- Note: this is not correct below level 200
+	local combined_max = 1725 + 25 * tier + potential
+	
+	local max_stats = {}
+	for stat in pairs(Stats) do
+		local stat_max
+		
+		if level <= 70 then
+			stat_max = level + 25
+		elseif level <= 155 then
+			stat_max = 95 + 2 * (level - 70)
+		elseif level <= 200 then
+			stat_max = 265 + 3 * (level - 155)
+		end
+		stat_max = stat_max + tier * 2
+		stat_max = stat_max + class_bonuses[stat]
+		stat_max = stat_max + math.ceil(potential / 6)
+		
+		if stat_max > 400 then
+			stat_max = 400
+		end
+		
+		max_stats[stat] = stat_max		
+	end
+	
+	local priority_list = get_priority_list(priorities)
+	local train_amounts = {}
+	local train_costs = {}
+	
+	local stat, cost, idx = get_next_autotrain(priority_list, current_stats, current_trains, max_stats, combined_max)
+	while stat do
+		train_amounts[idx] = (train_amounts[idx] or 0) + 1
+		train_costs[idx] = (train_costs[idx] or 0) + cost
+		current_trains = current_trains - cost
+		current_stats[stat] = current_stats[stat] + 1
+
+		stat, cost, idx = get_next_autotrain(priority_list, current_stats, current_trains, max_stats, combined_max)
+	end
+	
+	local indices_sorted = {}
+	for idx in pairs(train_amounts) do
+		table.insert(indices_sorted, idx)
+	end
+	table.sort(indices_sorted)
+    
+    if current_trains < prac_trains and prac_trains > 0 then
+        -- We need to convert some pracs
+        Send("train convertall")
+    end
+	
+	local first = true
+	for _, idx in pairs(indices_sorted) do
+		if first and not GetVariable("quiet") then
+			ColourTell("white", "", "[Autotrain]")
+			first = false
+			if GetVariable("cap") then
+				ColourTell("white", "", " With ")
+				ColourTell("lime", "", "autotrain cap")
+				ColourTell("white", "", " setting: ")
+				ColourTell("lime", "", GetVariable("cap"))
+			end
+			Note()
+		end
+		local cost = train_costs[idx]
+		local amt = train_amounts[idx]
+		local stat = priority_list[idx].stat
+		if not GetVariable("quiet") then
+			ColourTell("aqua", "", "[Priority #" .. idx .. "] ")
+			ColourTell("silver", "", "Training ")
+			ColourTell("red", "", amt)
+			ColourTell("silver", "", " ")
+			ColourTell("lime", "", stat)
+			ColourTell("silver", "", " for ")
+			ColourTell("aqua", "", cost)
+			if cost == 1 then
+				ColourTell("silver", "", " train.")
+			else
+				ColourTell("silver", "", " trains.")
+			end
+			Note()
+		end
+		Send("train " .. amt .. " " .. stat)
+	end
+	
+	if not GetVariable("quiet") then
+		if first then
+			ColourTell("white", "", "[Autotrain] Can't train any of your ")
+			ColourTell("lime", "", #priority_list)
+			ColourTell("white", "", " priorities.")
+			Note()
+			
+			if GetVariable("cap") then
+				ColourTell("white", "", "[Autotrain] ")
+				ColourTell("lime", "", "autotrain cap")
+				ColourTell("white", "", " setting: ")
+				ColourTell("lime", "", GetVariable("cap"))
+				Note()
+			end
+		else
+			ColourTell("aqua", "", current_trains)
+			if current_trains == 1 then
+				ColourTell("silver", "", " train remaining.")
+			else
+				ColourTell("silver", "", " trains remaining.")
+			end
+			Note()
+		end
+	end
+end
+
+function stat_sum(current_stats)
+    return current_stats["str"] + current_stats["int"] + current_stats["wis"]
+         + current_stats["dex"] + current_stats["con"] + current_stats["luck"]
+end
+
+function get_next_autotrain(priority_list, current_stats, current_trains, max_stats, combined_max)
+    if stat_sum(current_stats) >= combined_max then
+        return
+    end
+
+	for i,priority in ipairs(priority_list) do
+		if want_priority(priority, current_stats, max_stats) then
+			local index = get_balanced_priority(priority_list, i, current_stats, max_stats)
+			local stat = priority_list[index].stat
+			local actual_cost = get_train_cost(stat, current_stats[stat])
+			if actual_cost <= current_trains then
+				return stat, actual_cost, index
+			else
+				return
+			end
+		end
+	end
+end
+
+function get_balanced_priority(priority_list, index, current_stats, max_stats)
+	local target_priority = priority_list[index]
+	local target_cost = target_priority.trains
+	local target_group = target_priority.balanced_group
+	local best_index = index
+	local best_stat = current_stats[target_priority.stat]
+	
+	index = index + 1
+	
+	while index <= #priority_list do
+		local priority = priority_list[index]
+		if (GetVariable("balanced") and priority.trains == target_cost) or (target_group and priority.balanced_group == target_group) then
+			if want_priority(priority, current_stats, max_stats) and
+			   current_stats[priority.stat] < best_stat then
+					best_stat = current_stats[priority.stat]
+					best_index = index
+			end
+		else
+			break
+		end
+	
+		index = index + 1
+	end
+	
+	return best_index
+end
+
+function want_priority(priority, current_stats, max_stats)
+	if current_stats[priority.stat] < max_stats[priority.stat] and current_stats[priority.stat] < get_cap() then
+		local cost = get_train_cost(priority.stat, current_stats[priority.stat])
+		if cost <= priority.trains then
+			return true
+		end
+	end
+end
+
+function get_cap()
+	return tonumber(GetVariable("cap") or 400)
+end
+
+function get_train_cost(stat, value)
+	if value <= 60 then
+		return 1
+	end
+
+	local cost = get_base_cost(value)
+	
+	if not train_mods[stat] then
+		ColourNote("red", "", "[Autotrain] Error: Unable to get training modifiers for " .. stat)
+	else
+		if not train_mods[stat].race then
+			ColourNote("red", "", "[Autotrain] Error: Unable to get racial training modifier for " .. stat)
+		end
+
+		--if not train_mods[stat].tier then
+		--	ColourNote("red", "", "[Autotrain] Error: Unable to get tierstat training modifier for " .. stat)
+		--end
+
+		if not train_mods[stat].wish then
+			ColourNote("red", "", "[Autotrain] Error: Unable to get wishstat training modifier for " .. stat)
+		end
+	end
+	
+	cost = cost + train_mods[stat].race
+	cost = cost + (train_mods[stat].tier or 0)
+	cost = cost + train_mods[stat].wish
+	
+	if cost < 1 then
+		cost = 1
+	end
+
+	return cost
+end
+
+function get_base_cost(value)
+	costs = {
+		{70, 1},
+		{90, 2},
+		{130, 3},
+		{170, 4},
+		{200, 6},
+		{224, 9},
+		{250, 11},
+		{275, 15},
+		{290, 17},
+		{300, 20},
+		{325, 25},
+		{350, 35},
+		{375, 50},
+		{400, 60},
+	}
+	
+	for _, pair in ipairs(costs) do
+		if value <= pair[1] then
+			return pair[2]
+		end
+	end
+	
+	ColourNote("red", "", "[Autotrain] Tried to get cost for invalid stat amount: " .. value)
+end
+
+function get_current_trained()
+	local stats = gmcp("char.maxstats")
+	local ret = {}
+	for stat in pairs(Stats) do
+		ret[stat] = tonumber(stats["max" .. stat])
+	end
+	
+	return ret
+end
+
+function get_train_data()
+	Send("train")
+	EnableTriggerGroup("train_body", true)
+	
+	train_mods = {}
+end
+
+StatShortNames = {
+    Strength = "str",
+    Intelligence = "int",
+    Wisdom = "wis",
+    Dexterity = "dex",
+    Constitution = "con",
+    Luck = "luck",
+}
+
+function train_line(name, line, wc)
+    train_mods = train_mods or {}
+
+	local long_stat = Trim(wc[1])
+	if StatShortNames[long_stat] then
+		local stat = StatShortNames[long_stat]
+
+		local line = {}	
+		line.base = tonumber(wc[2])
+		line.race = tonumber(wc[3])
+		if wc[8] and wc[8] ~= "" then
+			line.tier = tonumber(wc[4])
+			line.wish = tonumber(wc[5])
+			line.cost = tonumber(wc[6])
+			line.trained = tonumber(wc[7])
+			line.max = tonumber(wc[8])
+		else
+			line.wish = tonumber(wc[4])
+			line.cost = tonumber(wc[5])
+			line.trained = tonumber(wc[6])
+			line.max = tonumber(wc[7])
+		end
+		
+		train_mods[stat] = line
+	end
+	
+	if long_stat == "Moves" then
+		train_done()
+	end
+end
+
+function train_done()
+	EnableTriggerGroup("train_body", false)
+	
+	SetVariable("train_mods", json.encode(train_mods))
+	
+	if run_autotrain then
+		try_autotrain()
+	end
+end
+
+function get_stats_data()
+	Send("stats")
+	EnableTriggerGroup("stats_body", true)
+	class_bonuses = {}
+end
+
+function stats_line(name, line, wc)
+	local source = Trim(wc[1])
+	
+	local line = {}
+	line.str = tonumber(wc[2])
+	line.int = tonumber(wc[3])
+	line.wis = tonumber(wc[4])
+	line.dex = tonumber(wc[5])
+	line.con = tonumber(wc[6])
+	line.luck = tonumber(wc[7])
+	line.total = tonumber(wc[8])
+	
+	if source == "Class Bonus" then
+		class_bonuses = line
+		SetVariable("class_bonuses", json.encode(class_bonuses))
+	elseif source == "" then
+		stats_done()
+	end
+end
+
+function stats_done()
+	EnableTriggerGroup("stats_body", false)
+	
+	if run_autotrain then
+		try_autotrain()
+	end
+end
+
+function get_potential()
+	Send("potential")
+	EnableTrigger("potential_amount", true)
+end
+
+function potential_amount(name, line, wc)
+	potential = tonumber(wc[1])
+	SetVariable("potential", potential)
+
+	EnableTrigger("potential_amount", false)
+	
+	if run_autotrain then
+		try_autotrain()
+	end
+end
+
+function potential_buy(name, line, wc)
+	potential = tonumber(wc[2])
+	SetVariable("potential", potential)
+end
+
+function autotrain_get_cap()
+	if GetVariable("cap") then
+		ColourTell("white", "", "[Autotrain] Stat Cap: ")
+		ColourNote("lime", "", GetVariable("cap"))
+	else
+		ColourTell("white", "", "[Autotrain] No stat cap. Set one with ")
+		ColourNote("lime", "", "autotrain cap <stat amount>")
+	end
+end
+
+function autotrain_set_cap(name, line, wc)
+	local cap = tonumber(wc[1])
+	if cap <= 0 or cap >= 400 then
+		DeleteVariable("cap")
+		ColourNote("white", "", "[Autotrain] Stat cap cleared.")
+	else
+		SetVariable("cap", cap)
+		ColourTell("white", "", "[Autotrain] Stat cap set to: ")
+		ColourNote("lime", "", cap)
+	end
+end
+
+function autotrain_quiet()
+	if GetVariable("quiet") then
+		ColourNote("white", "", "[Autotrain] No longer quiet.")
+		DeleteVariable("quiet")
+	else
+		ColourNote("white", "", "[Autotrain] Will now be quiet.")
+		SetVariable("quiet", "true")
+	end
+end
+
+function autotrain_balanced()
+	if GetVariable("balanced") then
+		ColourNote("white", "", "[Autotrain] No longer balanced training.")
+		DeleteVariable("balanced")
+	else
+		ColourNote("white", "", "[Autotrain] Will balance training of adjacent equal-cost priorities.")
+		SetVariable("balanced", "true")
+	end
+end
+
+function autotrain_tierstat()
+    if GetVariable("require_tier_stats") == "true" then
+        DeleteVariable("require_tier_stats")
+        ColourNote("white", "", "[Autotrain] No longer requiring tierstat to autotrain.")
+    else
+        SetVariable("require_tier_stats", "true")
+        ColourNote("white", "", "[Autotrain] Now requiring tierstat to autotrain.")
+    end
+end
+]]>
+</script>
+
+
+</muclient>

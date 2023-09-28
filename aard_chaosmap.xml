@@ -1,0 +1,1145 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Chaos_Map"
+   author="Sath"
+   id="e0af121daa3a4bf98f697854"
+   language="Lua"
+   purpose="Tracks your chaos portals and their landing locations. (chaosmap help)"
+   save_state="y"
+   date_written="2023-04-17 11:00:00"
+   requires="2.0"
+   version="1.013"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+</plugin>
+<include name="constants.lua"/>
+<timers>
+    <timer
+        name="config_timer"
+        script="config_timer"
+        enabled="y"
+        second="1"
+    />
+</timers>
+
+<aliases>
+    <alias
+        match="^chaosmap(?: .*)?$"
+        regexp="y"
+        enabled="y"
+        sequence="999"
+        script="help_alias"
+    />
+    <alias
+	   match="^chaosmap help(?: ([a-zA-Z]+))?$"
+       regexp="y"
+       enabled="y"
+	   script="help_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap db"
+       enabled="y"
+	   script="db_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="^chaosmap list(?:( nomapper))?"
+       regexp="y"
+       enabled="y"
+	   script="list_alias"
+	   sequence="100"
+	/>
+    <alias
+        match="^chaosmap delete (\w+)$"
+        regexp="y"
+        enabled="y"
+        sequence="100"
+        script="delete_alias"
+    />
+    <alias
+        match="^chaosmap deleteall(?: (confirm))?$"
+        regexp="y"
+        enabled="y"
+        sequence="100"
+        script="deleteall_alias"
+    />
+    <alias
+	   match="chaosmap inventory"
+       enabled="y"
+	   script="inventory_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap next"
+       enabled="y"
+	   script="next_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap all"
+       enabled="y"
+	   script="all_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap cancel"
+       enabled="y"
+	   script="cancel_all"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap matchbylanding"
+       enabled="y"
+	   script="matchbylanding_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap reload"
+       enabled="y"
+	   script="reload_plugin"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap update check"
+       enabled="y"
+	   script="update_check_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="chaosmap update install"
+       enabled="y"
+	   script="update_install_alias"
+	   sequence="100"
+	/>
+    <alias
+        match="^chaosmap gq(?: (start|end))?$"
+        regexp="y"
+        enabled="y"
+        sequence="100"
+        script="gq_alias"
+    />
+</aliases>
+
+<triggers>
+    <trigger
+        enabled="y"
+        match="You will no longer see inventory update tags."
+        sequence="100"
+        script="invmon_off"
+    />
+    <trigger
+        enabled="y"
+        match="You will no longer echo commands."
+        sequence="100"
+        script="echocommands_off"
+    />
+    <trigger
+        name="equip_portal"
+        enabled="y"
+        match="You equip * as a portal."
+        sequence="100"
+        script="equip_item"
+    />
+    <trigger
+        enabled="y"
+        match="You entered: *"
+        sequence="90"
+        keep_evaluating="y"
+        omit_from_output="y"
+    />
+    <trigger
+        enabled="y"
+        match="You entered: wear *"
+        sequence="100"
+        script="entered_wear"
+    />
+    <trigger
+        enabled="y"
+        match="^You cannot use (.*)\; it belongs to ([a-zA-Z]{3,12})\.$"
+        regexp="y"
+        sequence="100"
+        script="wear_owned"
+    />
+    <trigger
+        name="wear_resolved"
+        enabled="n"
+        match="*"
+        sequence="200"
+        script="wear_resolved"
+    />
+    <trigger
+        name="equip_hold"
+        enabled="y"
+        match="You hold * in your hand."
+        sequence="100"
+    />
+    <trigger
+        enabled="y"
+        match="^{invmon}(1?\d),(\d+),(-1|\d+),(-1|\d+)$"
+        regexp="y"
+        omit_from_output="y"
+        sequence="100"
+        script="invmon_item"
+    />
+    <trigger
+        name="invmon_failed"
+        enabled="n"
+        match="*"
+        sequence="200"
+        script="invmon_failed"
+    />
+    <trigger
+        enabled="y"
+        match="WHOOOOOOOOOOOOSH!"
+        sequence="100"
+        script="enter_portal"
+    />
+    <trigger
+        name="invdata_header"
+        enabled="n"
+        match="{invdata}"
+        omit_from_output="y"
+        sequence="100"
+        script="invdata_header"
+    />
+    <trigger
+        group="invdata_body"
+        enabled="n"
+        match="^(\d+),([A-Z]*),([^,]+),(\d+),(\d+),([01]),(-1|\d+),(-1|\d+)$"
+        regexp="y"
+        omit_from_output="y"
+        sequence="100"
+        script="invdata_item"
+    />
+    <trigger
+        group="invdata_body"
+        enabled="n"
+        match="{/invdata}"
+        omit_from_output="y"
+        sequence="100"
+        script="invdata_footer"
+    />
+    <trigger
+        name="eqdata_header"
+        enabled="n"
+        match="{eqdata}"
+        omit_from_output="y"
+        sequence="100"
+        script="eqdata_header"
+    />
+    <trigger
+        group="eqdata_body"
+        enabled="n"
+        match="^(\d+),([A-Z]*),([^,]+),(\d+),(\d+),([01]),(-1|\d+),(-1|\d+)$"
+        regexp="y"
+        omit_from_output="y"
+        sequence="100"
+        script="eqdata_item"
+    />
+    <trigger
+        group="eqdata_body"
+        enabled="n"
+        match="{/eqdata}"
+        omit_from_output="y"
+        sequence="100"
+        script="eqdata_footer"
+    />
+    <trigger
+        name="invdata_container_header"
+        enabled="n"
+        match="^{invdata (\d+)}$"
+        regexp="y"
+        omit_from_output="y"
+        sequence="100"
+        script="invdata_container_header"
+    />
+    <trigger
+        group="invdata_container_body"
+        enabled="n"
+        match="^(\d+),([A-Z]*),([^,]+),(\d+),(\d+),([01]),(-1|\d+),(-1|\d+)$"
+        regexp="y"
+        omit_from_output="y"
+        sequence="100"
+        script="invdata_container_item"
+    />
+    <trigger
+        group="invdata_container_body"
+        enabled="n"
+        match="{/invdata}"
+        omit_from_output="y"
+        sequence="100"
+        script="invdata_container_footer"
+    />
+    
+</triggers>
+
+<script>
+<![CDATA[
+require("wait")
+require("async")
+json = require("json")
+require("gmcphelper")
+require("aardwolf_colors")
+require("tprint")
+
+----------------------- Help File Code -----------------------
+local help_topics = {
+    [""] = {
+        "Commands:",
+        {"chaosmap help",                  "Display this help file."},
+        {"chaosmap inventory",             "Find all chaos portals in your inventory."},
+        {"chaosmap next",                  "Use an unmapped chaos portal to map it."},
+        {"chaosmap all",                   "Use all unmapped chaos portals as long as you can."},
+        {"chaosmap cancel",                "Cancel 'chaosmap all'."},
+        {"chaosmap list [nomapper]",       "List all mapped chaos portals."},
+        {"chaosmap delete <id>",           "Delete a chaos portal from your mapping."},
+        {"chaosmap deleteall [confirm]",   "Delete all of your chaos portal mappings."},
+        {"chaosmap db",                    "Reload mapper portals from the mapper database."},
+        {"chaosmap matchbylanding",        "Toggles matching mapper portals by landing room."},
+        {"chaosmap gq start|end",          "Disable/re-enable non-golden chaos portals."},
+		{"chaosmap reload",                "Reloads the plugin."},
+		{"chaosmap update check|install",  "Checks/installs the most recent version."},
+    },
+}
+
+
+function help_alias(name, line, wc)
+    local topic = wc[1]
+    if not help_topics[topic] then
+        topic = ""
+    end
+    
+    local help_lines = help_topics[topic]
+
+    ColourNote("blue", "", "============================================================")
+	ColourNote("white", "", plugin_prefix .. " Help")
+	for _,line in ipairs(help_lines) do
+        if type(line) == "string" then
+            ColourNote("silver", "", Trim(line))
+        else
+            if line[3] == "link" then
+                Hyperlink(line[1], line[1], line[1], "yellow", "", false)
+                ColourTell("yellow", "", string.format("%" .. 33 - string.len(line[1]) .. "s", ""))
+            else
+                ColourTell("yellow", "", string.format("%-33s", line[1]))
+            end
+            if string.len(line[1]) >= 32 then
+                Note()
+                ColourTell("silver", "", string.format("%33s", ""))
+            end
+            ColourTell("silver", "", line[2])
+            Note()
+        end
+	end
+    ColourNote("blue", "", "============================================================")
+end
+
+----------------------- Plugin Callbacks -----------------------
+function OnPluginInstall()
+    read_db_portals()
+    chaos_portals = json.decode(GetVariable("chaos_portals") or "{}")
+    zone_ids = json.decode(GetVariable("zone_ids") or "{}")
+    temp_lock = json.decode(GetVariable("temp_lock") or "{}")
+    backup_lock = json.decode(GetVariable("backup_lock") or "{}")
+    portal_locations = json.decode(GetVariable("portal_locations") or "{}")
+    
+    if IsConnected() then
+        OnPluginConnect()
+    end
+
+    ColourNote("white", "", plugin_prefix .. " Installed v" .. GetPluginInfo(GetPluginID(), 19) .. ". Use 'chaosmap help' for help.")
+end
+
+function OnPluginConnect()
+    config_timer()
+end
+
+function config_timer()
+    if not IsConnected() then
+        return
+    end
+
+    local state = gmcp("char.status.state")
+    if state == "3" or state == "8" or state == "9" or state == "11" or state == "12" then
+        if not GetVariable("sent_invmon") then
+            ColourNote("white", "", "[ChaosMap] Turning invmon on to be able to track portals.")
+            Send("invmon on")
+            SetVariable("sent_invmon", "true")
+        end
+        
+        if not GetVariable("sent_echocommands") then
+            ColourNote("white", "", "[ChaosMap] Turning echocommands on to be able to track portals.")
+            Send("config echocommands on")
+            SetVariable("sent_echocommands", "true")
+        end
+        
+        EnableTimer("config_timer", false)
+    end
+end
+
+function enable_config_timer()
+    EnableTimer("config_timer", true)
+    config_timer()
+end
+
+function invmon_off()
+    ColourNote("red", "", "[ChaosMap] WARNING: invmon is required to track portals.")
+    DeleteVariable("sent_invmon")
+    enable_config_timer()
+end
+
+function echocommands_off()
+    ColourNote("red", "", "[ChaosMap] WARNING: echocommands is required to track portals.")
+    DeleteVariable("sent_echocommands")
+    enable_config_timer()
+end
+
+GMCPPluginId = "3e7dedbe37e44942dd46d264"
+function OnPluginBroadcast(msg, id, name, text)
+    if id == GMCPPluginId then
+        if text == "room.info" then
+            handle_gmcp_room_info()
+        elseif text == "char.status" then
+            if do_all and gmcp("char.status.state") ~= "3" then
+                cancel_all()
+            end
+        end
+    end
+end
+
+----------------------- Plugin Code -----------------------
+-- Converts a query result to an iterator
+function dbrows(db, query)
+   iter,vm,i = db:nrows(query)
+   local function itwrap(vm, i)
+      retval = iter(vm, i)
+      if not retval then
+         return nil
+      end
+      return retval
+   end
+   return itwrap,vm,i
+end
+
+function read_db_portals()
+    local db = assert(sqlite3.open(GetInfo (66) .. "Aardwolf.db"))
+    db_portals = {}
+    local count = 0
+    
+    for row in dbrows(db, 'SELECT * FROM exits WHERE fromuid="*"') do
+        table.insert(db_portals, {
+            dest = row.touid,
+            cmd = row.dir,
+            lock = tonumber(row.level) or 0,
+        })
+	end
+    db:close()
+end
+
+function db_alias()
+    local portals = read_db_portals()
+    
+    ColourNote("white", "", "[ChaosMap] Loaded " .. #db_portals .. " portals from Aardwolf.db.")
+end
+
+ActionRemoved = "1"
+ActionWorn = "2"
+
+WearLocHold = "26"
+WearLocPortal = "31"
+
+function equip_item(name, line, wc)
+    current_equip_action = name
+    current_equip_name = wc[1]
+    
+    EnableTrigger("invmon_failed", true)
+end
+
+function entered_wear(name, line, wc)
+    current_wear_arg = wc[1]
+    EnableTrigger("wear_resolved", true)
+end
+
+function wear_owned(name, line, wc)
+    local item_name = wc[1]
+    local ownedby = wc[2]
+
+    if item_name == ChaosName or item_name == GoldenName and tonumber(current_wear_arg) then
+        if not chaos_portals[current_wear_arg] then
+            chaos_portals[current_wear_arg] = {}
+        end
+
+        chaos_portals[current_wear_arg].ownedby = ownedby
+
+        ColourNote("yellow", "", "[ChaosMap] Marking portal id " .. current_wear_arg .. " owned by " .. ownedby)
+        SetVariable("chaos_portals", json.encode(chaos_portals))
+    end
+
+    current_wear_arg = nil
+    EnableTrigger("wear_resolved", false)
+end
+    
+function wear_resolved()
+    current_wear_arg = nil
+    EnableTrigger("wear_resolved", false)
+end
+
+function invmon_item(name, line, wc)
+    local action = wc[1]
+    local objectid = wc[2]
+    local containerid = wc[3]
+    local wearloc = wc[4]
+    
+    if action == ActionWorn and (wearloc == WearLocHold or wearloc == WearLocPortal) then
+        if wearloc == WearLocHold then
+            SetVariable("hold_id", objectid)
+            if current_equip_action == "equip_hold" and current_equip_name then
+                SetVariable("hold_name", current_equip_name)
+            else
+                DeleteVariable("hold_name")
+            end
+        elseif wearloc == WearLocPortal then
+            SetVariable("portal_id", objectid)
+            if current_equip_action == "equip_portal" and current_equip_name then
+                SetVariable("portal_name", current_equip_name)
+            else
+                DeleteVariable("portal_name")
+            end
+        end
+    elseif action == ActionRemoved and (wearloc == WearLocHold or wearloc == WearLocPortal) then
+        if wearloc == WearLocHold then
+            DeleteVariable("hold_id")
+            DeleteVariable("hold_name")
+        elseif wearloc == WearLocPortal then
+            DeleteVariable("portal_id")
+            DeleteVariable("portal_name")
+        end
+    end
+    
+    current_equip_action = nil
+    current_equip_name = nil
+    
+    EnableTrigger("invmon_failed", false)
+end
+
+function invmon_failed()
+    current_equip_action = nil
+    current_equip_name = nil
+    
+    EnableTrigger("invmon_failed", false)
+end
+
+ChaosName = "a bright pulsating chaos portal"
+GoldenName = "a golden chaos portal"
+
+function enter_portal()
+    local portal_name, portal_id, portal_wearloc
+    if GetVariable("portal_name") == ChaosName or GetVariable("portal_name") == GoldenName then
+        portal_name = GetVariable("portal_name")
+        portal_id = GetVariable("portal_id")
+        portal_wearloc = WearLocPortal
+    elseif GetVariable("hold_name") == ChaosName or GetVariable("hold_name") == GoldenName then
+        portal_name = GetVariable("hold_name")
+        portal_id = GetVariable("hold_id")
+        portal_wearloc = WearLocHold
+    end
+    
+    if portal_id then
+        current_portal = {
+            name = portal_name,
+            id = portal_id,
+            wearloc = portal_wearloc
+        }
+    else
+        current_portal = nil
+    end
+end
+
+function handle_gmcp_room_info()
+    local portal = current_portal
+    current_portal = nil
+    
+    if not portal then
+        return
+    end
+
+    local room = gmcp("room.info")
+    if not room then
+        return
+    end
+
+    if not chaos_portals[portal.id] then
+        local golden = false
+        if portal.name == "a golden chaos portal" then
+            golden = true
+        end
+    
+        local portal_id = get_zone_id(room.zone)
+        local room_id = get_room_id(room)
+        chaos_portals[portal.id] = {
+            id = portal_id,
+            dest = room_id,
+            dest_name = room.name,
+            dest_zone = room.zone,
+            golden = golden,
+        }
+        
+        SetVariable("chaos_portals", json.encode(chaos_portals))
+        
+        ColourTell("white", "", "[ChaosMap] Registered new chaos portal ")
+        ColourTell("yellow", "", portal_id)
+        ColourTell("white", "", " (item id=")
+        ColourTell("yellow", "", portal.id)
+        ColourTell("white", "", ", dest=")
+        ColourTell("yellow", "", room_id)
+        if golden then
+            ColourTell("white", "", ", ")
+            ColourTell("yellow", "", "golden")
+        end
+        ColourTell("white", "", ")")
+        Note()
+    end
+    
+    if do_all then
+        if gmcp("char.status.state") == "3" then
+            map_next()
+        else
+            cancel_all()
+        end
+    end
+end
+
+function get_zone_id(zone)
+    local id = (zone_ids[zone] or 0) + 1
+    zone_ids[zone] = id
+    
+    SetVariable("zone_ids", json.encode(zone_ids))
+    
+    return zone .. id
+end
+
+function get_room_id(room)
+    if room.num ~= "-1" then
+        return room.num
+    end
+    
+    return "nomap_" .. room.name .. "_" .. room.zone
+end
+
+function list_alias(name, line, wc)
+    local nomapper = wc[1] == " nomapper"
+
+    local chaos_portals_sorted = {}
+    for id, info in pairs(chaos_portals) do
+        table.insert(chaos_portals_sorted, {
+            id = id,
+            data = info,
+        })
+    end
+    table.sort(chaos_portals_sorted, function (a, b)
+        return (a.data.id or "") < (b.data.id or "")
+    end)
+    
+    ColourNote("white", "", "[ChaosMap] Mapped chaos portals: (*=golden)")
+    
+    if #chaos_portals_sorted == 0 then
+        ColourNote("silver", "", "  No chaos portals mapped.")
+    else
+        ColourNote("white", "", string.format(
+            " %3s  %14s   %11s  %-5.5s %-20.20s %s",
+            "", "ID", "Item ID", "Dest", "Room Name", "Mapper"
+        ))
+        local i = 1
+        for _, item in ipairs(chaos_portals_sorted) do
+            local color = "silver"
+            local golden_marker = ""
+            if item.data.golden then
+                color = "yellow"
+                golden_marker = "*"
+            end
+            
+            local mapper_dest = ""
+            for _, mapper_data in ipairs(db_portals) do
+                if string.find(mapper_data.cmd, item.id, 1, true) or GetVariable("matchbylanding") and mapper_data.dest == item.data.dest then
+                    if mapper_data.dest == (item.data.dest or "-1") then
+                        mapper_dest = "Mapped!"
+                    elseif string.len(mapper_data.dest) > 5 then
+                        mapper_dest = "Mapped to nomap"
+                    else
+                        mapper_dest = "Mapped to #" .. mapper_data.dest
+                    end
+                end
+            end
+            
+            local disp = true
+            
+            if nomapper and mapper_dest ~= "" then
+                disp = false
+            end
+            
+            if disp then
+                if item.data.ownedby then
+                    ColourNote("orange", "", string.format(
+                        " %3d. %14s%1s: %11s #%-5.5s %-20.20s %s",
+                        i, item.data.id or "", golden_marker or "", item.id, item.data.dest or "", "Owned by: " .. item.data.ownedby, mapper_dest
+                    ))
+                else
+                    ColourNote(color, "", string.format(
+                        " %3d. %14s%1s: %11s #%-5.5s %-20.20s %s",
+                        i, item.data.id, golden_marker, item.id, item.data.dest, item.data.dest_name, mapper_dest
+                    ))
+                end
+                i = i + 1
+            end
+        end
+    end
+    
+    local unmapped_count = 0
+    local unmapped_golden_count = 0
+    for id, data in pairs(portal_locations) do
+        if not chaos_portals[id] then
+            unmapped_count = unmapped_count + 1
+            if data.golden then
+                unmapped_golden_count = unmapped_golden_count + 1
+            end
+        end
+    end
+    
+    ColourTell("silver", "", "  You have ")
+    ColourTell("yellow", "", unmapped_count)
+    if unmapped_count == 1 then
+        ColourTell("silver", "", " unmapped chaos portal")
+    else
+        ColourTell("silver", "", " unmapped chaos portals")
+    end
+    if unmapped_golden_count > 0 then
+        ColourTell("silver", "", ", ")
+        ColourTell("yellow", "", unmapped_golden_count)
+        
+        if unmapped_golden_count == 1 then
+            ColourTell("silver", "", " of which is golden")
+        else
+            ColourTell("silver", "", " of which are golden")
+        end
+    end
+    ColourTell("silver", "", ".")
+    Note()
+end
+
+function delete_alias(name, line, wc)
+    local any = false
+    for id, data in pairs(chaos_portals) do
+        if wc[1] == id or wc[1] == data.id then
+            ColourNote("yellow", "", "[ChaosMap] Deleted portal " .. wc[1] .. " (id=" .. id .. ", dest=" .. (data.dest or "") .. ")")
+            chaos_portals[id] = nil
+            any = true
+        end
+    end
+    
+    if any then
+        SetVariable("chaos_portals", json.encode(chaos_portals))
+    else
+        ColourNote("white", "", "[ChaosMap] No portal with id '" .. wc[1] .. "'. Use 'chaosmap list' to see portals.")
+    end
+end
+
+function deleteall_alias(name, line, wc)
+    if wc[1] == "confirm" then
+        chaos_portals = {}
+        SetVariable("chaos_portals", "{}")
+        
+        zone_ids = {}
+        SetVariable("zone_ids", "{}")
+        
+        ColourNote("yellow", "", "[ChaosMap] Deleted all mapped portals.")
+    else
+        ColourNote("white", "", "[ChaosMap] Are you sure you want to delete all of your mapped portals? Use 'chaosmap deleteall confirm'.")
+    end
+end
+
+function inventory_alias()
+    if running_inventory then
+        ColourNote("silver", "", "[ChaosMap] You're already finding portals in your inventory.")
+        return
+    end
+
+    SendNoEcho("invdata ansi")
+    EnableTrigger("invdata_header", true)
+    SendNoEcho("eqdata ansi")
+    EnableTrigger("eqdata_header", true)
+    
+    running_inventory = true
+    portal_locations = {}
+    invdata_container_queue = {}
+end
+
+function invdata_header()
+    EnableTrigger("invdata_header", false)
+    EnableTriggerGroup("invdata_body", true)
+end
+
+TypePortal = "20"
+TypeContainer = "11"
+function invdata_item(name, line, wc)
+    local id = wc[1]
+    local name = wc[3]
+    local item_type = wc[5]
+    
+    if item_type == TypePortal then
+        if name == ChaosName then
+            portal_locations[id] = {
+                loc = "inventory",
+            }
+        elseif name == GoldenName then
+            portal_locations[id] = {
+                loc = "inventory",
+                golden = true,
+            }
+        end
+    elseif item_type == TypeContainer then
+        queue_invdata_container(id)
+    end
+end
+
+function queue_invdata_container(id)
+    SendNoEcho("invdata " .. id .. " ansi")
+    table.insert(invdata_container_queue, id)
+    EnableTrigger("invdata_container_header", true)
+end
+
+function invdata_footer()
+    EnableTriggerGroup("invdata_body", false)
+end
+
+function eqdata_header()
+    EnableTrigger("eqdata_header", false)
+    EnableTriggerGroup("eqdata_body", true)
+end
+
+function eqdata_item(name, line, wc)
+    local id = wc[1]
+    local name = wc[3]
+    local item_type = wc[5]
+    
+    if item_type == TypePortal then
+        if name == ChaosName then
+            portal_locations[id] = {
+                loc = "inventory",
+            }
+        elseif name == GoldenName then
+            portal_locations[id] = {
+                loc = "inventory",
+                golden = true,
+            }
+        end
+    end
+end
+
+function eqdata_footer()
+    EnableTriggerGroup("eqdata_body", false)
+end
+
+function invdata_container_header(name, line, wc)
+    if not invdata_container_queue or wc[1] ~= invdata_container_queue[1] then
+        ColourNote("red", "", "[ChaosMap] Error trying to find portals in your inventory.")
+        return
+    end
+    
+    table.remove(invdata_container_queue, 1)
+    current_invdata_container = wc[1]
+    
+    EnableTriggerGroup("invdata_container_body", true)
+end
+
+function invdata_container_item(name, line, wc)
+    local id = wc[1]
+    local name = wc[3]
+    local item_type = wc[5]
+    
+    if not current_invdata_container then
+        ColourNote("red", "", "[ChaosMap] Error trying to find portals in your inventory.")
+        return
+    end
+
+    if item_type == TypePortal then
+        if name == ChaosName then
+            portal_locations[id] = {
+                loc = "container",
+                container = current_invdata_container,
+            }
+        elseif name == GoldenName then
+            portal_locations[id] = {
+                loc = "container",
+                container = current_invdata_container,
+                golden = true,
+            }
+        end
+    end
+end
+
+function invdata_container_footer()
+    EnableTriggerGroup("invdata_container_body", false)
+
+    if not invdata_container_queue or #invdata_container_queue == 0 then
+        EnableTrigger("invdata_container_header", false)
+        running_inventory = false
+        current_invdata_container = nil
+        invdata_container_queue = nil
+        
+        local found_count = 0
+        local unmapped_count = 0
+        local container_count = 0
+        
+        for id, loc_data in pairs(portal_locations) do
+            found_count = found_count + 1
+            if not chaos_portals[id] then
+                unmapped_count = unmapped_count + 1
+            end
+            if loc_data.loc == "container" then
+                container_count = container_count + 1
+            end
+        end
+        ColourTell("white", "", "[ChaosMap] Found " .. found_count .. " chaos portals, " .. unmapped_count .. " unmapped, " .. container_count .. " in container(s).")
+        if unmapped_count > 0 then
+            ColourTell("white", "", " Use 'chaosmap next' to map an unmapped portal.")
+        end
+        Note()
+        
+        SetVariable("portal_locations", json.encode(portal_locations))
+    end
+end
+
+function next_alias()
+    do_all = false
+    map_next()
+end
+
+function all_alias()
+    do_all = true
+    map_next()
+end
+
+function cancel_all()
+    if do_all then
+        do_all = false
+        ColourNote("red", "", "[ChaosMap] Cancelling 'chaosmap all'.")
+    else
+        ColourNote("white", "", "[ChaosMap] You aren't running 'chaosmap all'.")
+    end
+end
+
+function matchbylanding_alias()
+    if GetVariable("matchbylanding") then
+        ColourNote("yellow", "", "[ChaosMap] No longer matching chaos portals to mapper portals by landing room.")
+        DeleteVariable("matchbylanding")
+    else
+        ColourNote("aqua", "", "[ChaosMap] Now matching chaos portals to mapper portals by landing room.")
+        SetVariable("matchbylanding", "true")
+    end
+end
+
+function map_next()
+    if not portal_locations then
+        do_all = false
+        ColourNote("white", "", "[ChaosMap] Use 'chaosmap inventory' first to find portals in your inventory.")
+        return
+    end
+    
+    local portal_id
+    local portal_location
+    for id, loc_data in pairs(portal_locations) do
+        if not chaos_portals[id] then
+            if not portal_id or loc_data.loc == "inventory" or portal_location.loc == "container" then
+                portal_id = id
+                portal_location = loc_data
+            end
+        end
+    end
+    
+    if portal_id then
+        if portal_location.loc == "container" then
+            Send("get " .. portal_id .. " " .. portal_location.container)
+            Send("wear " .. portal_id)
+            Send("enter")
+            Send("remove " .. portal_id)
+            Send("put " .. portal_id .. " " .. portal_location.container)
+        elseif portal_location.loc == "inventory" then
+            Send("wear " .. portal_id)
+            Send("enter")
+        else
+            ColourNote("red", "", "[ChaosMap] ERROR: Invalid item location type: " .. portal_location.loc)
+        end
+    else
+        ColourNote("white", "", "[ChaosMap] You've mapped all the portals in your inventory!")
+    end
+end
+
+function gq_alias(name, line, wc)
+    enable_chaos(wc[1] == "end")
+end
+
+function enable_chaos(enable)
+    local count = 0
+    
+    -- Enable/disable mapped portals
+    for id, data in pairs(chaos_portals) do
+        if not data.golden then
+            count = count + enable_id(id, data.dest, enable)
+        end
+    end
+
+    -- Enable/disable unmapped portals
+    for id, data in pairs(portal_locations) do
+        if not data.golden then
+            count = count + enable_id(id, nil, enable)
+        end
+    end
+    
+    if count > 0 then
+        SetVariable("temp_lock", json.encode(temp_lock))
+        SetVariable("backup_lock", json.encode(backup_lock))
+    end
+    
+    if count == 0 then
+        ColourNote("white", "", "[ChaosMap] No portals modified.")
+    elseif enable then
+        ColourNote("aqua", "", "[ChaosMap] Re-enabled " .. count .. " chaos portals.")
+    else
+        ColourNote("yellow", "", "[ChaosMap] Temporarily disabled " .. count .. " chaos portals.")
+    end
+end
+
+function enable_id(id, dest, enable)
+    local count = 0
+    
+    for _, db_portal in ipairs(db_portals) do
+        if string.find(db_portal.cmd, id, 1, true) or GetVariable("matchbylanding") and db_portal.dest == dest then
+            local temp = temp_lock[db_portal.cmd]
+            local backup = backup_lock[db_portal.cmd]
+            
+            if not enable and (temp or db_portal.lock) <= 291 then
+                Execute(";mapper fullcexit {" .. db_portal.cmd .. "} * " .. db_portal.dest .. " 300")
+                
+                temp_lock[db_portal.cmd] = 300
+                backup_lock[db_portal.cmd] = (db_portal.lock or 0)
+                
+                count = count + 1
+            elseif enable and temp and temp ~= backup then
+                Execute(";mapper fullcexit {" .. db_portal.cmd .. "} * " .. db_portal.dest .. " " .. backup)
+                
+                temp_lock[db_portal.cmd] = nil
+                
+                count = count + 1
+            end
+        end
+    end
+    
+    return count
+end
+
+----------------------- Plugin Update Code -----------------------
+-- Code taken from Durel's dinv plugin, originally via Crowley
+
+plugin_url = "https://sethbling.s3.us-west-2.amazonaws.com/Downloads/Aardwolf/plugins/aard_chaosmap.xml"
+SetVariable("DownloadURL", plugin_url)
+plugin_protocol = "HTTPS"
+plugin_prefix = "[ChaosMap]"
+
+function update_check_alias()
+    update_plugin("check")
+    ColourNote("white", "", plugin_prefix .. " Checking for updated version...")
+end
+
+function update_install_alias()
+    update_plugin("install")
+    ColourNote("white", "", plugin_prefix .. " Checking for and installing updated version...")
+end
+
+function reload_plugin()
+    local scriptPrefix = GetAlphaOption("script_prefix")
+    local retval
+
+    -- If the user has not already specified the script prefix for this version of mush, pick a
+    -- reasonable default value
+    if (scriptPrefix == "") then
+        scriptPrefix = "\\\\\\"
+        SetAlphaOption("script_prefix", scriptPrefix)
+    end
+
+    -- Tell mush to reload the plugin in one second.  We can't do it directly here because a
+    -- plugin can't unload itself.  Even if it could, how could it tell mush to load it again
+    -- if it weren't installed? 
+    retval = Execute(scriptPrefix.."DoAfterSpecial(0.1, \"ReloadPlugin('"..GetPluginID().."')\", sendto.script)")
+end
+
+function update_plugin(mode)
+    update_mode = mode
+
+    wait.make(get_plugin_file)
+end
+
+function get_plugin_file()
+    local urlThread = async.request(plugin_url, plugin_protocol)
+
+    if not urlThread then
+        note_error("Couldn't create async url request.")
+        return
+    end
+
+    local timeout = 10
+    local totTime = 0
+    while (urlThread:alive() and totTime < timeout) do
+        wait.time(0.1)
+        totTime = totTime + 0.1
+    end
+
+    local remoteRet, pluginData, status, headers, fullStatus = urlThread:join()
+
+    if not status then
+        ColourNote("red", "", plugin_prefix .. " Couldn't download plugin file. No status code.")
+        
+        return
+    end
+
+    if (status ~= 200) then
+        ColourNote("red", "", plugin_prefix .. " Plugin file request status code: " .. status .. ": " .. fullStatus)
+        return
+    end
+    
+    local currentVersion = GetPluginInfo(GetPluginID(), 19) or 0
+    local currentVerStr  = string.format("%1.3f", currentVersion)
+    local remoteVerStr   = string.match(pluginData, '%s%s+version="([0-9%.]+)"')
+    local remoteVersion  = tonumber(remoteVerStr or "") or 0
+
+    if remoteVersion == currentVersion then
+        ColourNote("white", "", plugin_prefix .. " You are running the most recent version (v" .. currentVerStr .. ")")
+    elseif (remoteVersion < currentVersion) then
+        ColourNote("white", "", plugin_prefix .. " You have a newer version than is publicly available. (v" .. currentVerStr .. ")")
+    elseif (update_mode == "check") then
+        ColourNote("white", "", plugin_prefix .. " You are running v" .. currentVerStr .. ", but there's a newer version v" .. remoteVerStr)
+    elseif (update_mode == "install") then
+        ColourNote("white", "", plugin_prefix .. " Updating plugin from version " .. currentVerStr .. " to version " .. remoteVerStr) 
+
+        local pluginFile = GetPluginInfo(GetPluginID(), 6)
+        local file = io.open(pluginFile, "wb")
+        file:write(pluginData)
+        file:close()
+        reload_plugin()
+    else
+        ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)
+    end
+end
+----------------------- End Plugin Update Code -----------------------
+
+]]>
+</script>
+
+
+</muclient>

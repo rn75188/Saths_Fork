@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Traceback_Context"
+   author="Sath"
+   id="2dd067d99d1f8eebe682def8"
+   language="Lua"
+   purpose="Scans output for traceback, and prints the script context."
+   save_state="y"
+   date_written="2023-03-03 11:00:00"
+   requires="2.0"
+   version="1.002"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+<aliases>
+    <alias
+        match="traceback error"
+        enabled="y"
+        script="error_alias"
+        sequence="100"
+    />
+    <alias
+        match="traceback reload"
+        enabled="y"
+        script="reload_plugin"
+        sequence="100"
+    />
+</aliases>
+
+<triggers>
+</triggers>
+
+<script>
+<![CDATA[
+plugin_url = "https://sethbling.s3.us-west-2.amazonaws.com/Downloads/Aardwolf/plugins/traceback_context.xml"
+SetVariable("DownloadURL", plugin_url)
+
+function OnPluginInstall()
+    line_count = GetLineCount()
+    line_text = ""
+    runtime_error_regex = rex.new([[^\[string "Plugin: ([\w_]+)"]:(\d+): (.+)$]])
+end
+
+function OnPluginScreendraw(line_type, do_log, text)
+    local first, last, wc = runtime_error_regex:match(text)
+    if wc then
+        local plugin_name = wc[1]
+        local line = tonumber(wc[2])
+        local error_str = wc[3]
+        
+        if plugin_name and line then
+            for _, id in ipairs(GetPluginList()) do
+                if GetPluginInfo(id, 1) == plugin_name then
+                    local script_text = GetPluginInfo(id, 4)
+                    if script_text then
+                        note_context(script_text, line)
+                        break
+                    end
+                end
+            end
+        end
+    end
+end
+
+function note_context(script_text, line)
+    Note()
+    local line_list = split(script_text, "\n")
+    for i = math.max(line - 5, 1), math.min(line + 5, #line_list) do
+        if i == line then
+            ColourTell("black", "#E04000", string.format("%4d: ", i))
+            ColourNote("black", "white", line_list[i])
+        else
+            ColourTell("#E04000", "", string.format("%4d: ", i))
+            ColourNote("silver", "", line_list[i])
+        end
+    end
+end
+
+function split(inputstr, sep)
+    if sep == nil then
+        sep = "%s"
+    end
+    local t={}
+    for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+        table.insert(t, str)
+    end
+
+    if t[1] == nil then
+        t[1] = ""
+    end
+
+    return t
+end
+
+function error_alias()
+    -- Reload the plugin after throwing the error.
+    reload_plugin()
+    
+    -- Intentionally throw an error to demonstrate this plugin.
+    a[nil] = true
+end
+
+-- Code taken from Durel's dinv plugin
+function reload_plugin()
+    local scriptPrefix = GetAlphaOption("script_prefix")
+    local retval
+
+    -- If the user has not already specified the script prefix
+    -- for this version of mush, pick a reasonable default value
+    if (scriptPrefix == "") then
+        scriptPrefix = "\\\\\\"
+        SetAlphaOption("script_prefix", scriptPrefix)
+    end
+
+    -- Tell mush to reload the plugin in one second. 
+    -- We can't do it directly here because a plugin
+    -- can't unload itself.  Even if it could, how
+    -- could it tell mush to load it again if it weren't
+    -- installed? 
+    retval = Execute(scriptPrefix.."DoAfterSpecial(0.1, \"ReloadPlugin('"..GetPluginID().."')\", sendto.script)")
+end
+
+]]>
+</script>
+
+
+</muclient>

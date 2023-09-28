@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Memos"
+   author="Sath"
+   id="9c01d394b99cfd7e716bef13"
+   language="Lua"
+   purpose="Lets you create notes for yourself."
+   save_state="y"
+   date_written="2022-11-09 12:00:00"
+   requires="4.73"
+   version="1.0"
+   >
+<description trim="y">
+<![CDATA[
+** This plugin lets you create notes for yourself.
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+<aliases>
+	<alias
+	   match="^memos? help$"
+       regexp="y"
+	   enabled="y"
+	   script="help_alias"
+	   sequence="100"
+	/>
+	<alias
+	   match="^memos? edit ([\w][\w_\d]*)$"
+       regexp="y"
+	   enabled="y"
+	   script="edit_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="^memos? list(?: (.+))?$"
+       regexp="y"
+	   enabled="y"
+	   script="list_alias"
+	   sequence="100"
+	/>
+	<alias
+	   match="^memos? ([\w_][\w\d]*)( silent)?$"
+       regexp="y"
+	   enabled="y"
+	   script="disp_alias"
+	   sequence="101"
+	/>
+</aliases>
+
+<triggers>
+    <trigger
+        keep_evaluating="y"
+        match="^\[(  \d| \d\d|\d\d\d) T(\d) (.{6}) (.{3})\](.*[\)\]\}])? (\w\w\w.*) \((Male|Female) ([\w ]+)\)$"
+        regexp="y"
+        sequence="100"
+        enabled="y"
+        script="whois_header"
+    />
+    
+    <trigger
+        name="whois_separator"
+        keep_evaluating="y"
+        match="--------------------------------------------------------------------------"
+        regexp="n"
+        sequence="100"
+        enabled="n"
+        omit_from_output="y"
+        script="whois_separator"
+    />
+    
+    <trigger
+        keep_evaluating="y"
+        match="^---------------- Player : (\w{3,16}) \((?:Offline|Online|Linkdead)\) --------------$"
+        regexp="y"
+        sequence="100"
+        enabled="y"
+        script="finger_header"
+    />
+    
+    <trigger
+        keep_evaluating="y"
+        match="^(\w+) online since \: \w{3} \w{3} [ \d]{2} [ \d]\d\:\d\d\:\d\d \d{4}$"
+        regexp="y"
+        sequence="100"
+        enabled="n"
+        script="finger_footer"
+        group="finger_footer"
+    />
+    
+    <trigger
+        keep_evaluating="y"
+        match="^             {3,16}: (((\d{1,5} days?( and|,) )?\d{1,2} hours?( and|,) )?\d{1,2} minutes?(( and|,) \d{1,2} seconds?)?|\d{1,2} seconds) ago.$"
+        regexp="y"
+        sequence="100"
+        enabled="n"
+        script="finger_footer"
+        group="finger_footer"
+    />
+</triggers>
+
+<script>
+<![CDATA[
+
+json = require("json")
+
+function help_alias()
+	local help_lines= {
+		{"memo help", "Display this help file."},
+		{"memo list [search filter]", "List your memos. [Optional search text]"},
+		{"memo <name> [silent]", "Display a memo. [Optionally fail silent]"},
+		{"memo edit <name>", "Create/edit a memo."},
+	}
+
+	ColourNote("white", "", "[Memos] Commands")
+	for _,line in ipairs(help_lines) do
+		ColourTell("yellow", "", string.format("%-25s", line[1]))
+		ColourTell("silver", "", line[2])
+		Note()
+	end
+end
+
+function edit_alias(name, line, wc)
+    local name = string.upper(wc[1])
+    local body = (GetVariable(name) or "")
+    local new_body = utils.editbox("Edit memo:", name, body)
+    
+    if new_body then
+        if new_body == "" and GetVariable(name) ~= "" then
+            ColourNote("silver", "", "[Memos] Deleting memo " .. name .. ".")
+            DeleteVariable(name)
+        else
+            SetVariable(name, new_body)
+            ColourNote("silver", "", "[Memos] Updated memo " .. name .. ".")
+        end
+    end
+end
+
+function get_all_memos(filter)
+    local filter = string.lower(filter or "")
+    local memos = {}
+    
+    for name, body in pairs(GetVariableList()) do
+        if filter ~= "" then
+            if string.find(string.lower(name), filter, 1, true) or string.find(string.lower(body), filter, 1, true) then
+                table.insert(memos, {
+                    name = name,
+                    body = body
+                })
+            end
+        else
+            table.insert(memos, {
+                name = name,
+                body = body
+            })
+        end
+    end
+    
+    table.sort(memos, function (a, b) return string.lower(a.name) < string.lower(b.name) end)
+    
+    return memos
+end
+
+function list_alias(name, line, wc)
+    local filter = wc[1]
+    if filter and filter ~= "" then
+        ColourNote("white", "", "[Memos] Memos matching '" .. filter .. "':")
+    else
+        ColourNote("white", "", "[Memos] All memos:")
+    end
+    
+    local memos = get_all_memos(filter)
+    
+    for _, memo in ipairs(memos) do
+        display_list_item(memo.name, memo.body)
+    end
+
+    if #memos == 0 then
+        ColourNote("silver", "", "No memos found. Use 'memo edit <name>' to create one.")
+    elseif #memos == 1 then
+        ColourNote("silver", "", "1 memo found.")
+    else
+        ColourNote("silver", "", #memos .. " memos found.")
+    end
+end
+
+function display_list_item(name, body)
+    ColourTell("white", "", string.format("  %-16s ", string.upper(name)))
+    body = string.gsub(body, "\r\n", "|")
+    
+    if string.len(body) >= 60 then
+        ColourNote("silver", "", string.sub(body, 1, 57) .. "...")
+    else
+        ColourNote("silver", "", body)
+    end
+end
+
+function disp_alias(name, line, wc)
+    display_memo(wc[1], wc[2] and wc[2] ~= "")
+end
+
+function display_memo(name, silent_failure)
+    local body = GetVariable(name)
+    
+    if body and body ~= "" then
+        ColourNote("white", "", "[Memos] " .. string.upper(name))
+        ColourNote("silver", "", body)
+    elseif not silent_failure then
+        ColourNote("silver", "", "[Memos]" .. " No such memo: " .. string.upper(name) .. ". Use 'memo edit <name>' to create a memo.")
+    end
+end
+
+function whois_header(name, line, wc)
+    local name = wc[6]
+    local pos = string.find(name, " ", 1, true)
+    if pos then
+        name = string.sub(name, 1, pos-1)
+    end
+    
+    local body = GetVariable(name)
+    if body and body ~= "" then
+        EnableTrigger("whois_separator", true)
+        display_at_whois_separator = body
+    end
+end
+
+function whois_separator()
+    if display_at_whois_separator then
+        ColourTell("green", "", "---------------------------------[ ")
+        ColourTell("white", "", "Memo")
+        ColourTell("green", "", " ]---------------------------------")
+        Note()
+        
+        ColourNote("silver", "", display_at_whois_separator)
+    end
+    ColourNote("green", "", "--------------------------------------------------------------------------")
+    
+    display_at_whois_separator = nil
+    EnableTrigger("whois_separator", false)
+end
+
+function finger_header(name, line, wc)
+    local name = wc[1]
+    local body = GetVariable(name)
+    
+    if body and body ~= "" then
+        EnableTriggerGroup("finger_footer", true)
+        display_at_finger_footer = body
+    end
+end
+
+function finger_footer()
+    display_finger_footer()
+end
+
+function display_finger_footer()
+    if display_at_finger_footer then
+        ColourTell("aqua", "", "---------------- ")
+        ColourTell("white", "", "Memo")
+        ColourTell("aqua", "", " ---------------")
+        Note()
+        
+        ColourNote("silver", "", display_at_finger_footer)
+
+        ColourNote("aqua", "", "-------------------------------------")
+    end
+    
+    display_at_finger_footer = nil
+    EnableTriggerGroup("finger_footer", false)
+end
+
+]]>
+</script>
+
+
+</muclient>
