@@ -30,9 +30,10 @@ drop duplicates
 Bid/lbid with simplified syntax, like
 
 ```
-bid 123 1.15B
-lbid 45678 320M proxy
+bid 123 320M
+lbid 45678 10.5m proxy
 deposit 200k
+give 1.2B sath
 ```
 
 **Aard_Memos**
