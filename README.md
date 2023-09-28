@@ -3,6 +3,7 @@ Sath's Public Aardwolf Plugins.
 
 **Aard_Autotrain**
 Set up training priorities, then use the 'autotrain' command to automatically spend all of your trains/pracs according to those priorities.
+
 ```autotrain help```
 
 **Aard_Chaosmap**
