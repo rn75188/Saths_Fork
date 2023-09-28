@@ -14,10 +14,8 @@ Track the landing room of every portal you use. Use a single command to enable/d
 **Aard_Easy_bid**
 Bid/lbid with simplified syntax, like
 
-```
-bid 123 1.15B
-lbid 45678 320M proxy
-```
+```bid 123 1.15B
+lbid 45678 320M proxy```
 
 **Aard_Memos**
 Write memos for yourself. Memos named after a player show up in their whois/finger.
