@@ -39,7 +39,7 @@ memo help
 Shows all lines of MUD output, even those that plugins/triggers attempt to hide.
 
 ```
-showwhidden
+showhidden
 ```
 
 **Aard_Spamreduce_Combine**
