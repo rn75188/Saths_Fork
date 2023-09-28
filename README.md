@@ -1,8 +1,9 @@
 # AardwolfPlugins
-Sath's Public Aardwolf Plugins
+Sath's Public Aardwolf Plugins.
 
 **Aard_Autotrain**
 Set up training priorities, then use the 'autotrain' command to automatically spend all of your trains/pracs according to those priorities.
+```autotrain help```
 
 **Aard_Chaosmap**
 Track the landing room of every portal you use. Use a single command to enable/disable regular chaos portals for GQs.
