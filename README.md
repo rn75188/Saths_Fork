@@ -32,6 +32,7 @@ Bid/lbid with simplified syntax, like
 ```
 bid 123 1.15B
 lbid 45678 320M proxy
+deposit 200k
 ```
 
 **Aard_Memos**
