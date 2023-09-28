@@ -667,7 +667,7 @@ function list_alias(name, line, wc)
             
             local mapper_dest = ""
             for _, mapper_data in ipairs(db_portals) do
-                if string.find(mapper_data.cmd, item.id, 1, true) or GetVariable("matchbylanding") and mapper_data.dest == item.data.dest then
+                if string.find(mapper_data.cmd, item.id, 1, true) or GetVariable("matchbylanding") ~= "false" and mapper_data.dest == item.data.dest then
                     if mapper_data.dest == (item.data.dest or "-1") then
                         mapper_dest = "Mapped!"
                     elseif string.len(mapper_data.dest) > 5 then
@@ -936,12 +936,12 @@ function cancel_all()
 end
 
 function matchbylanding_alias()
-    if GetVariable("matchbylanding") then
-        ColourNote("yellow", "", "[ChaosMap] No longer matching chaos portals to mapper portals by landing room.")
-        DeleteVariable("matchbylanding")
-    else
+    if GetVariable("matchbylanding") == "false" then
         ColourNote("aqua", "", "[ChaosMap] Now matching chaos portals to mapper portals by landing room.")
         SetVariable("matchbylanding", "true")
+    else
+        ColourNote("yellow", "", "[ChaosMap] No longer matching chaos portals to mapper portals by landing room.")
+        SetVariable("matchbylanding", "false")
     end
 end
 
@@ -1137,7 +1137,6 @@ function get_plugin_file()
     end
 end
 ----------------------- End Plugin Update Code -----------------------
-
 ]]>
 </script>
 
