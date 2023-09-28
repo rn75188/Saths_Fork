@@ -1,5 +1,4 @@
-# AardwolfPlugins
-Sath's Public Aardwolf Plugins.
+# Sath's Public Aardwolf Plugins
 
 **Aard_Autotrain**
 
