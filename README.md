@@ -1,5 +1,4 @@
-# AardwolfPlugins
-Sath's Public Aardwolf Plugins.
+# Sath's Public Aardwolf Plugins
 
 **Aard_Autotrain**
 
@@ -11,7 +10,7 @@ autotrain help
 
 **Aard_Chaosmap**
 
-Track the landing room of every portal you use. Use a single command to enable/disable regular chaos portals for GQs.
+Track the landing room of every chaos portal you use. Use a single command to enable/disable regular chaos portals for GQs.
 
 ```
 chaosmap help
@@ -31,8 +30,10 @@ drop duplicates
 Bid/lbid with simplified syntax, like
 
 ```
-bid 123 1.15B
-lbid 45678 320M proxy
+bid 123 320M
+lbid 45678 10.5m proxy
+deposit 200k
+give 1.2B sath
 ```
 
 **Aard_Memos**
