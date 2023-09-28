@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Drop_Duplicates"
+   author="Sath"
+   id="c5ed9a4bd788475da2170c76"
+   language="Lua"
+   purpose="Drop unkept items with duplicate names (includes keyring)"
+   save_state="n"
+   date_written="2021-02-03 11:00:00"
+   requires="2.0"
+   version="1.0"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+
+
+<aliases>
+	<alias
+		match="drop duplicates"
+		enabled="y"
+		script="drop_duplicates"
+		sequence="100"
+	/>
+	<alias
+		match="show duplicates"
+		enabled="y"
+		script="show_duplicates"
+		sequence="100"
+	/>
+</aliases>
+
+
+
+<triggers>
+	<trigger
+		  enabled="n"
+		  match="{invdata}"
+		  regexp="n"
+		  script="invdata_header"
+		  sequence="100"
+		  name="invdata_header"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="*,*,*,*,*,*,*,*"
+		  regexp="n"
+		  script="invdata_item"
+		  sequence="100"
+		  group="invdata_body"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="{/invdata}"
+		  regexp="n"
+		  script="invdata_footer"
+		  sequence="100"
+		  group="invdata_body"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="You remove * from your keyring."
+		  regexp="n"
+		  script="keyring_remove"
+		  sequence="100"
+		  group="keyring_remove"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="^You remove (\d+) \* (.+) from your keyring.$"
+		  regexp="y"
+		  script="keyring_remove_multi"
+		  sequence="99"
+		  group="keyring_remove"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="You place * on your keyring."
+		  regexp="n"
+		  script="keyring_place"
+		  sequence="100"
+		  group="keyring_place"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="^You place (\d+) \* (.+) on your keyring.$"
+		  regexp="y"
+		  script="keyring_place_multi"
+		  sequence="99"
+		  group="keyring_place"
+		  omit_from_output="y"
+	/>
+	<trigger
+		  enabled="n"
+		  match="{keyring_placed}"
+		  regexp="n"
+		  script="keyring_placed"
+		  sequence="100"
+		  group="keyring_place"
+		  omit_from_output="y"
+	/>
+		
+
+</triggers>
+
+
+
+<script>
+<![CDATA[
+require "aardwolf_colors"
+
+function drop_duplicates()
+	get_duplicates(do_drop_duplicates)
+end
+
+function show_duplicates()
+	get_duplicates(do_show_duplicates)
+end
+
+function get_duplicates(action)
+	Send("keyring get all")
+	SendNoEcho("invdata")
+
+	EnableTrigger("invdata_header", true)
+	EnableTriggerGroup("keyring_remove", true)
+	keyring_remove_count = 0
+	duplicates_action = action
+	duplicates = {}
+	nonkept_names = {}
+end
+
+function do_drop_duplicates()
+	for _,item in ipairs(duplicates) do
+		Send("drop " .. item.id)
+	end
+	duplicates_done()
+end
+
+function do_show_duplicates()
+	if #duplicates > 0 then
+		ColourNote("yellow", "", "Duplicate item names:")
+		for _,item in ipairs(duplicates) do
+			local s = string.format("@W  %10s  @w%s",
+				item.id,
+				item.name
+			)
+			AnsiNote(ColoursToANSI(s))
+		end
+	else
+		ColourNote("white", "", "You have no unkept duplicate item names.")
+	end
+	
+	duplicates_done()
+end
+
+function duplicates_done()
+	EnableTriggerGroup("keyring_remove", false)
+	EnableTriggerGroup("keyring_place", true)
+	keyring_place_count = 0
+	Send("keyring put all")
+	SendNoEcho("echo {keyring_placed}")
+end
+
+function invdata_header()
+	ColourNote("silver", "", "You remove " .. (keyring_remove_count or "ERROR") .. " items from your keyring.")
+	EnableTrigger("invdata_header", false)
+	EnableTriggerGroup("invdata_body", true)
+end
+
+function invdata_item(name, line, wc)
+	local id = wc[1]
+	local flags = wc[2]
+	local name = wc[3]
+	local keep = string.find(flags, "K")
+	
+	item = {
+		id=id,
+		name=name,
+		keep=keep
+	}
+	
+	if nonkept_names[name] then
+		if keep then
+			if not nonkept_names[name].keep then
+				-- Keep this item, but drop original item
+				table.insert(duplicates, nonkept_names[name])
+				nonkept_names[name] = item
+			end
+		else
+			-- Is duplicate, drop
+			table.insert(duplicates, item)
+		end
+	else
+		-- Track item name
+		nonkept_names[name] = item
+	end
+end
+
+function invdata_footer()
+	EnableTriggerGroup("invdata_body", false)
+	duplicates_action()
+end
+
+function keyring_remove()
+	keyring_remove_count = (keyring_remove_count or 0) + 1
+end
+
+function keyring_remove_multi(name, line, wc)
+	keyring_remove_count = (keyring_remove_count or 0) + tonumber(wc[1])
+end
+
+function keyring_place()
+	keyring_place_count = (keyring_place_count or 0) + 1
+end
+
+function keyring_place_multi(name, line, wc)
+	keyring_place_count = (keyring_place_count or 0) + tonumber(wc[1])
+end
+
+function keyring_placed()
+	ColourNote("silver", "", "You place " .. (keyring_place_count or "ERROR") .. " items on your keyring.")
+	EnableTriggerGroup("keyring_place", false)
+end
+
+]]>
+</script>
+
+
+</muclient>
