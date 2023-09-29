@@ -16,6 +16,10 @@ Track the landing room of every chaos portal you use. Use a single command to en
 chaosmap help
 ```
 
+**Aard_Command_Queue**
+
+Displays your queued commands in a miniwin.
+
 **Aard_Drop_Duplicates**
 
 Drop unkept items with the same name as each other.

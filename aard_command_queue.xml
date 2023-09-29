@@ -1,0 +1,692 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Command_Queue"
+   author="Sath"
+   id="bc7ec560291a11ebadc10243"
+   language="Lua"
+   purpose="Displays the command queue in a mini-window. (cq help)"
+   save_state="y"
+   date_written="2020-11-25 19:54:08"
+   requires="4.73"
+   version="1.001"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+<aliases>
+    <alias
+        match="^cq(?: .*)?$"
+        regexp="y"
+        enabled="y"
+        send_to="10"
+        sequence="999"
+        script="help_alias"
+    />
+    <alias
+	   match="^cq help(?: ([a-zA-Z]+))?$"
+       regexp="y"
+       enabled="y"
+	   script="help_alias"
+	   sequence="100"
+	/>
+    <alias
+		match="cq max *"
+		enabled="y"
+		script="cq_max"
+		sequence="100"
+	/>    
+    <alias
+	   match="cq reload"
+       enabled="y"
+	   script="reload_plugin"
+	   sequence="100"
+	/>
+    <alias
+	   match="cq update check"
+       enabled="y"
+	   script="update_check_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="cq update install"
+       enabled="y"
+	   script="update_install_alias"
+	   sequence="100"
+	/>
+</aliases>
+
+<triggers>
+	<trigger
+	   enabled="y"
+	   match="You entered: *"
+	   script="entered_command"
+	   sequence="100"
+	/>
+		
+	<trigger
+	   enabled="y"
+	   match="<MAPSTART>"
+	   script="map_start"
+	   sequence="100"
+	/>
+
+	<trigger
+	   enabled="y"
+	   match="<MAPEND>"
+	   script="map_end"
+	   sequence="100"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   name="room_exits"
+	   match="[ Exits: * ]"
+	   script="room_exits"
+	   sequence="100"
+	/>
+
+	<trigger
+	   enabled="y"
+	   match="You feel disoriented for a moment then appear in a new location."
+	   script="teleported"
+	   sequence="100"
+	/>
+	
+	<trigger
+	   enabled="y"
+	   match="^$"
+	   regexp="y"
+	   script="blank_line"
+	   sequence="100"
+	/>
+	
+	<trigger
+		enabled="y"
+		match="Your journey was broken by the need to defend yourself."
+		script="run_interrupted"
+		sequence="100"
+	/>
+
+	<trigger
+		enabled="y"
+		match="Too many run errors. Aborting speedwalk."
+		script="run_interrupted"
+		sequence="100"
+	/>
+    
+    <trigger
+		enabled="y"
+		match="Existing profile loaded - please enter your password."
+		script="resolve_one_command"
+		sequence="100"
+	/>
+    
+    <trigger
+		enabled="y"
+		match="                          Welcome to Aardwolf           "
+		script="resolve_one_command"
+		sequence="100"
+	/>
+    
+    <trigger
+		enabled="y"
+		match="############# Reconnecting to Game #############"
+		script="resolve_one_command"
+		sequence="100"
+	/>
+    
+    <trigger
+		enabled="y"
+		match="-- Input Cancelled --"
+		script="stop_resolved"
+		sequence="100"
+	/>
+    
+</triggers>
+
+
+
+<script>
+<![CDATA[
+require("wait")
+require("async")
+require "themed_miniwindows"
+require "json"
+require "gmcphelper"
+
+----------------------- Help File Code -----------------------
+local help_topics = {
+    [""] = {
+        "Commands:",
+        {"cq help",                  "Display this help file."},
+        {"cq max",                   "Set the max size of the command queue."},
+		{"cq reload",                "Reloads the plugin."},
+		{"cq update check|install",  "Checks/installs the most recent version."},
+    },
+}
+
+
+function help_alias(name, line, wc)
+    local topic = wc[1]
+    if not help_topics[topic] then
+        topic = ""
+    end
+    
+    local help_lines = help_topics[topic]
+
+    ColourNote("blue", "", "============================================================")
+	ColourNote("white", "", plugin_prefix .. " Help")
+	for _,line in ipairs(help_lines) do
+        if type(line) == "string" then
+            ColourNote("silver", "", Trim(line))
+        else
+            if line[3] == "link" then
+                Hyperlink(line[1], line[1], line[1], "yellow", "", false)
+                ColourTell("yellow", "", string.format("%" .. 33 - string.len(line[1]) .. "s", ""))
+            else
+                ColourTell("yellow", "", string.format("%-33s", line[1]))
+            end
+            if string.len(line[1]) >= 32 then
+                Note()
+                ColourTell("silver", "", string.format("%33s", ""))
+            end
+            ColourTell("silver", "", line[2])
+            Note()
+        end
+	end
+    ColourNote("blue", "", "============================================================")
+end
+
+----------------------- Plugin Code -----------------------
+local command_queue = {}
+
+function OnPluginEnable()	
+	create_window()
+end
+
+function OnPluginConnect()
+    command_queue = {}
+    update()
+	if Send_GMCP_Packet then
+        if gmcp("config.echocommands") ~= "YES" then
+            Send_GMCP_Packet("config Echocommands on")
+            ColourNote("lime", "", "[Command Queue] Enabling Echocommands (required for plugin).")
+        end
+	else
+		ColourNote("aqua", "", "[Command Queue] Please make sure 'echocommands' is enabled.")
+	end
+end
+
+function OnPluginInstall()	
+	create_window()
+    displayed = 0
+
+    ColourNote("white", "", plugin_prefix .. " Installed v" .. GetPluginInfo(GetPluginID(), 19) .. ". Use 'cq help' for help.")
+end
+
+function create_window()
+	if not window then
+		window = ThemedTextWindow(
+			"commands",                    -- string, required, a unique identifier for this window
+			0, -- integer, required, where to put it if the player hasn't moved it
+			0,  -- integer, required, where to put it if the player hasn't moved it
+			300,         -- integer, required, how big to make it if the player hasn't moved it
+			300,        -- integer, required, how big to make it if the player hasn't moved it
+			"Command Queue",                 -- string, optional (nil means no titlebar), text to put into the title
+			nil,       -- string, optional (default is "center"), "left", "center", or "right"
+			false,          -- boolean, optional (default is false), true adds a close button in the top left
+			true,            -- boolean, optional (default is false), make the window resizeable
+			true,       -- boolean, optional (default is false), add a scrollbar and mousewheel scrolling
+			false,       -- boolean, optional (default is false), make the text selectable
+			false,         -- boolean, optional (default is false), make the text copyable via right-click
+			false,        -- boolean, optional (default is false), turn detected URLs into clickable links
+			true,              -- boolean, optional (default is false), automatically wrap text lines that are too wide
+			"Courier New",       -- string, optional (default is Dina), override the title font name
+			10,       -- integer, optional (default is 10), override the title font size
+			"Courier New",        -- string, optional (default is Dina), override the body text font name
+			10,        -- integer, optional (default is 10), override the body text font size
+			nil,        -- integer, optional (default is 1000), maximum number of text lines to keep
+			2           -- integer, optional (default is 5 pixels), space between text and miniwindow frame
+		)
+	end
+end
+
+function OnPluginDisable()
+	window:close()
+	window = nil
+end
+
+function command_in_queue(cmd)
+	for _,c in ipairs(command_queue) do
+		if matches(c, cmd) then
+			return true
+		end
+	end
+	
+	return false
+end
+
+function matches(queued_command, cmd)
+	if cmd == queued_command then
+		return true
+	end
+	
+	local atpos = string.find(queued_command, "@", 1, true)
+	if atpos then
+		-- Only compare up to the first "@"
+		return string.sub(queued_command, 1, atpos) == string.sub(cmd, 1, atpos-1) .. "@"
+	end
+end
+
+function is_run_command(cmd)
+	cmd = string.lower(cmd)
+	if not starts_with(cmd, "run ") then
+		return false
+	end
+	
+	cmd = remove_from_start(cmd, "run ")
+	if string.find(cmd, "[^nsewud%d ]") then
+		return false
+	end
+	
+	return true
+end
+
+function entered_command(name, line, wc)
+	local cmd = wc[1]
+	command_since_last_movement = cmd
+	
+	command_registered = true
+	
+	if run_commands and #run_commands > 0 and cmd == run_commands[1] then
+		table.remove(run_commands, 1)
+	else
+		run_commands = nil
+	
+		if not command_in_queue(cmd) then
+			return
+		end
+		
+		while #command_queue > 0 and not matches(command_queue[1], cmd) do
+			local skipped = table.remove(command_queue, 1)
+			--ColourNote("red", "", "Skipped: " .. skipped)		
+		end
+		
+		if #command_queue > 0 and matches(command_queue[1], cmd) then
+			table.remove(command_queue, 1)
+		end
+		
+		if is_run_command(cmd) then
+			run_commands = get_run_commands(cmd)
+		end
+	end
+	
+	update()
+end
+
+function starts_with(a, b)
+	return string.sub(a, 1, string.len(b)) == b
+end
+
+function remove_from_start(a, b)
+	if starts_with(a, b) then
+		return string.sub(a, string.len(b)+1)
+	else
+		return a
+	end
+end
+
+function blank_line()
+	command_registered = false
+end
+
+function map_start()
+	EnableTrigger("room_exits", false)
+end
+
+function map_end()
+	EnableTrigger("room_exits", true)
+end
+
+function room_exits(name, line, wc)
+	command_registered = false
+	command_since_last_movement = nil
+end
+
+function teleported()
+	command_registered = true
+	command_since_last_movement = nil
+end
+
+function resolve_one_command()
+	if #command_queue > 0 then
+		table.remove(command_queue, 1)
+	end
+	
+	update()
+end
+
+function get_run_commands(cmd)
+	local converted = {}
+	
+	cmd = string.sub(cmd, 5)
+	while string.len(cmd) > 0 do
+		local number_length = 0
+		for i=1,3 do
+			if tonumber(string.sub(cmd, 1, i)) then
+				number_length = i
+			else
+				break
+			end
+		end
+		
+		if number_length > 0 then
+			local number = tonumber(string.sub(cmd, 1, number_length))
+			local dir = string.sub(cmd, number_length+1, number_length+1)
+			
+			for i=1,number do
+				table.insert(converted, dir)
+			end
+			
+			cmd = string.sub(cmd, number_length+2)
+		else
+			local dir = string.sub(cmd, 1, 1)
+			
+			table.insert(converted, dir)
+
+			cmd = string.sub(cmd, 2)
+		end
+	end
+	
+	return converted
+end
+
+function run_interrupted()
+	run_commands = nil
+	update()
+end
+
+function OnPluginBroadcast (msg, id, name, text)
+	if id == "3e7dedbe37e44942dd46d264" then
+		if (text == "room.info") then
+			if command_since_last_movement then
+				command_since_last_movement = nil
+			end
+
+			if not command_registered then
+				command_registered = true
+				resolve_one_command()
+			end
+        elseif text == "char.status" then
+            local state = tonumber(gmcp("char.status.state"))
+            if prev_char_state == 5 then
+                while #command_queue > 0 and command_queue[1] ~= "END" do
+                    resolve_one_command()
+                end
+            end
+            
+            if command_queue[1] == "END" then
+                resolve_one_command()
+                resolve_one_command()
+            end
+            
+            prev_char_state = state
+		end
+	end
+end
+
+function OnPluginSent(cmd)
+	table.insert(command_queue, cmd)
+	add_command(cmd)
+end
+
+function update()
+	if run_commands then
+		SetVariable("command_queue_size", #run_commands + #command_queue)
+	else
+		SetVariable("command_queue_size", #command_queue)
+	end
+		
+	if window then
+        displayed = 0
+		window:clear()
+		
+		if run_commands then
+			for _, cmd in ipairs(run_commands) do
+				add_command(cmd)
+			end
+		end
+			
+		for _, cmd in ipairs(command_queue) do
+			add_command(cmd)
+		end
+	end
+end
+
+function starts_with(s1, s2)
+	return string.len(s2) > 0 and string.sub(s1, 1, string.len(s2)) == s2
+end
+
+function ends_with(s1, s2)
+	return string.len(s2) > 0 and string.sub(s1, string.len(s1)-string.len(s2)+1, string.len(s1)) == s2
+end
+
+function command_groups(words)
+	local groups = {}
+	local group = ""
+	for i, word in ipairs(words) do
+		if string.len(group) > 0 then
+			group = group .. " "
+		end
+		group = group .. word
+		if string.len(group) > 0 and ends_with(word, "'") or not starts_with(group, "'") then
+			table.insert(groups, group)
+			group = ""
+		end
+	end
+	
+	if group ~= "" then
+		table.insert(groups, group)
+	end
+	
+	return groups
+end
+
+function grouped_command(command)
+	command = string.lower(Trim(command))
+	for _, c in ipairs({
+			"cast",
+			"kill",
+			"give",
+			"wear",
+			"remove",
+			"get",
+			"put",
+	}) do
+		if starts_with(c, command) then
+			return true
+		end
+	end
+end
+
+function add_command(cmd)
+    if window then
+        displayed = (displayed or 0) + 1
+        if displayed > tonumber(GetVariable("max_display") or 1000) then
+            return
+        end
+        
+
+        local words = utils.split(cmd, " ")
+        if #words > 1 and grouped_command(words[1]) then
+            local groups = command_groups(words)
+            local color = "Y"
+            local text = ""
+            for i,group in ipairs(groups) do
+                if i > 1 then
+                    text = text .. " "
+                end
+                text = text .. "@" .. color .. group
+            
+                if color == "Y" then
+                    color = "y"
+                else
+                    color = "Y"
+                end
+            end
+            window:add_text(text)
+        else
+            window:add_text("@Y" .. cmd)
+        end
+    end
+end
+
+function command_queue_size()
+	return #(run_commands or {}) + #(command_queue or {})
+end
+
+function get_command_queue()
+    return json.encode(command_queue)
+end
+
+function cq_max(name, line, wc)
+    local m = tonumber(wc[1])
+    
+    if m or m < 1 then
+        SetVariable("max_display", wc[1])
+        ColourNote("silver", "", "[Command Queue] Set max commands to " .. m .. ".")
+    else
+        ColourNote("silver", "", "[Command Queue] Must give a number of maximum commands to display.")
+    end
+end
+
+MovementCommands = { n = true, s = true, e = true, w = true, u = true, d = true }
+function movement_queued()
+    for _, cmd in ipairs(command_queue) do
+        if MovementCommands[cmd] then
+            return true
+        end
+    end
+    
+    return false
+end
+
+function stop_resolved()
+    while #command_queue > 0 and string.lower(command_queue[1]) ~= "stop" do
+        table.remove(command_queue, 1)
+    end
+    
+    if string.lower(command_queue[1]) == "stop" then
+        table.remove(command_queue, 1)
+    end
+    
+    update()
+end
+
+
+----------------------- Plugin Update Code -----------------------
+-- Code taken from Durel's dinv plugin, originally via Crowley
+
+plugin_url = "https://sethbling.s3.us-west-2.amazonaws.com/Downloads/Aardwolf/plugins/aard_command_queue.xml"
+SetVariable("DownloadURL", plugin_url)
+plugin_protocol = "HTTPS"
+plugin_prefix = "[CommandQueue]"
+
+function update_check_alias()
+    update_plugin("check")
+    ColourNote("white", "", plugin_prefix .. " Checking for updated version...")
+end
+
+function update_install_alias()
+    update_plugin("install")
+    ColourNote("white", "", plugin_prefix .. " Checking for and installing updated version...")
+end
+
+function reload_plugin()
+    local scriptPrefix = GetAlphaOption("script_prefix")
+    local retval
+
+    -- If the user has not already specified the script prefix for this version of mush, pick a
+    -- reasonable default value
+    if (scriptPrefix == "") then
+        scriptPrefix = "\\\\\\"
+        SetAlphaOption("script_prefix", scriptPrefix)
+    end
+
+    -- Tell mush to reload the plugin in one second.  We can't do it directly here because a
+    -- plugin can't unload itself.  Even if it could, how could it tell mush to load it again
+    -- if it weren't installed? 
+    retval = Execute(scriptPrefix.."DoAfterSpecial(0.1, \"ReloadPlugin('"..GetPluginID().."')\", sendto.script)")
+end
+
+function update_plugin(mode)
+    update_mode = mode
+
+    wait.make(get_plugin_file)
+end
+
+function get_plugin_file()
+    local urlThread = async.request(plugin_url, plugin_protocol)
+
+    if not urlThread then
+        note_error("Couldn't create async url request.")
+        return
+    end
+
+    local timeout = 10
+    local totTime = 0
+    while (urlThread:alive() and totTime < timeout) do
+        wait.time(0.1)
+        totTime = totTime + 0.1
+    end
+
+    local remoteRet, pluginData, status, headers, fullStatus = urlThread:join()
+
+    if not status then
+        ColourNote("red", "", plugin_prefix .. " Couldn't download plugin file. No status code.")
+        
+        return
+    end
+
+    if (status ~= 200) then
+        ColourNote("red", "", plugin_prefix .. " Plugin file request status code: " .. status .. ": " .. fullStatus)
+        return
+    end
+    
+    local currentVersion = GetPluginInfo(GetPluginID(), 19) or 0
+    local currentVerStr  = string.format("%1.3f", currentVersion)
+    local remoteVerStr   = string.match(pluginData, '%s%s+version="([0-9%.]+)"')
+    local remoteVersion  = tonumber(remoteVerStr or "") or 0
+
+    if remoteVersion == currentVersion then
+        ColourNote("white", "", plugin_prefix .. " You are running the most recent version (v" .. currentVerStr .. ")")
+    elseif (remoteVersion < currentVersion) then
+        ColourNote("white", "", plugin_prefix .. " You have a newer version than is publicly available. (v" .. currentVerStr .. ")")
+    elseif (update_mode == "check") then
+        ColourNote("white", "", plugin_prefix .. " You are running v" .. currentVerStr .. ", but there's a newer version v" .. remoteVerStr)
+    elseif (update_mode == "install") then
+        ColourNote("white", "", plugin_prefix .. " Updating plugin from version " .. currentVerStr .. " to version " .. remoteVerStr) 
+
+        local pluginFile = GetPluginInfo(GetPluginID(), 6)
+        local file = io.open(pluginFile, "wb")
+        file:write(pluginData)
+        file:close()
+        reload_plugin()
+    else
+        ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)
+    end
+end
+----------------------- End Plugin Update Code -----------------------
+]]>
+</script>
+
+
+</muclient>
