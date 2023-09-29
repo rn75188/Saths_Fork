@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2020-11-25 19:54:08"
    requires="4.73"
-   version="1.001"
+   version="1.002"
    >
 <description trim="y">
 <![CDATA[
@@ -73,14 +73,14 @@
 		
 	<trigger
 	   enabled="y"
-	   match="<MAPSTART>"
+	   match="&lt;MAPSTART&gt;"
 	   script="map_start"
 	   sequence="100"
 	/>
 
 	<trigger
 	   enabled="y"
-	   match="<MAPEND>"
+	   match="&lt;MAPEND&gt;"
 	   script="map_end"
 	   sequence="100"
 	/>
@@ -228,6 +228,10 @@ end
 function OnPluginInstall()	
 	create_window()
     displayed = 0
+
+	if IsConnected() then
+		OnPluginConnect()
+	end
 
     ColourNote("white", "", plugin_prefix .. " Installed v" .. GetPluginInfo(GetPluginID(), 19) .. ". Use 'cq help' for help.")
 end
