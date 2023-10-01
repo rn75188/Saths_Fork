@@ -294,13 +294,13 @@ local help_topics = {
     [""] = {
         "Commands:",
         {"chaosmap help",                  "Display this help file."},
-        {"chaosmap inventory",             "Find all chaos portals in your inventory."},
-        {"chaosmap next",                  "Use an unmapped chaos portal to map it."},
-        {"chaosmap all",                   "Use all unmapped chaos portals as long as you can."},
+        {"chaosmap inventory",             "Locate all chaos portals in your inventory."},
+        {"chaosmap next",                  "Use an untracked chaos portal to start tracking it."},
+        {"chaosmap all",                   "Use all untracked chaos portals until you get aggroed."},
         {"chaosmap cancel",                "Cancel 'chaosmap all'."},
-        {"chaosmap list [nomapper]",       "List all mapped chaos portals."},
-        {"chaosmap delete <id>",           "Delete a chaos portal from your mapping."},
-        {"chaosmap deleteall [confirm]",   "Delete all of your chaos portal mappings."},
+        {"chaosmap list [nomapper]",       "List all tracked chaos portals."},
+        {"chaosmap delete <id>",           "Delete a chaos portal from your tracking database."},
+        {"chaosmap deleteall [confirm]",   "Delete your entire chaos portal tracking database."},
         {"chaosmap db",                    "Reload mapper portals from the mapper database."},
         {"chaosmap matchbylanding",        "Toggles matching mapper portals by landing room."},
         {"chaosmap gq start|end",          "Disable/re-enable non-golden chaos portals."},
@@ -593,7 +593,7 @@ function handle_gmcp_room_info()
         
         SetVariable("chaos_portals", json.encode(chaos_portals))
         
-        ColourTell("white", "", "[ChaosMap] Registered new chaos portal ")
+        ColourTell("white", "", "[ChaosMap] Tracking new chaos portal ")
         ColourTell("yellow", "", portal_id)
         ColourTell("white", "", " (item id=")
         ColourTell("yellow", "", portal.id)
@@ -609,7 +609,7 @@ function handle_gmcp_room_info()
     
     if do_all then
         if gmcp("char.status.state") == "3" then
-            map_next()
+            use_next()
         else
             cancel_all()
         end
@@ -647,14 +647,14 @@ function list_alias(name, line, wc)
         return (a.data.id or "") < (b.data.id or "")
     end)
     
-    ColourNote("white", "", "[ChaosMap] Mapped chaos portals: (*=golden)")
+    ColourNote("white", "", "[ChaosMap] Tracked chaos portals: (*=golden)")
     
     if #chaos_portals_sorted == 0 then
-        ColourNote("silver", "", "  No chaos portals mapped.")
+        ColourNote("silver", "", "  No chaos portals being tracked.")
     else
         ColourNote("white", "", string.format(
             " %3s  %14s   %11s  %-5.5s %-20.20s %s",
-            "", "ID", "Item ID", "Dest", "Room Name", "Mapper"
+            "", "ID", "Item ID", "Dest", "Room Name", "Mapper?"
         ))
         local i = 1
         for _, item in ipairs(chaos_portals_sorted) do
@@ -701,29 +701,29 @@ function list_alias(name, line, wc)
         end
     end
     
-    local unmapped_count = 0
-    local unmapped_golden_count = 0
+    local untracked_count = 0
+    local untracked_golden_count = 0
     for id, data in pairs(portal_locations) do
         if not chaos_portals[id] then
-            unmapped_count = unmapped_count + 1
+            untracked_count = untracked_count + 1
             if data.golden then
-                unmapped_golden_count = unmapped_golden_count + 1
+                untracked_golden_count = untracked_golden_count + 1
             end
         end
     end
     
     ColourTell("silver", "", "  You have ")
-    ColourTell("yellow", "", unmapped_count)
-    if unmapped_count == 1 then
-        ColourTell("silver", "", " unmapped chaos portal")
+    ColourTell("yellow", "", untracked_count)
+    if untracked_count == 1 then
+        ColourTell("silver", "", " untracked chaos portal")
     else
-        ColourTell("silver", "", " unmapped chaos portals")
+        ColourTell("silver", "", " untracked chaos portals")
     end
-    if unmapped_golden_count > 0 then
+    if untracked_golden_count > 0 then
         ColourTell("silver", "", ", ")
-        ColourTell("yellow", "", unmapped_golden_count)
+        ColourTell("yellow", "", untracked_golden_count)
         
-        if unmapped_golden_count == 1 then
+        if untracked_golden_count == 1 then
             ColourTell("silver", "", " of which is golden")
         else
             ColourTell("silver", "", " of which are golden")
@@ -758,15 +758,15 @@ function deleteall_alias(name, line, wc)
         zone_ids = {}
         SetVariable("zone_ids", "{}")
         
-        ColourNote("yellow", "", "[ChaosMap] Deleted all mapped portals.")
+        ColourNote("yellow", "", "[ChaosMap] Deleted all tracked portals.")
     else
-        ColourNote("white", "", "[ChaosMap] Are you sure you want to delete all of your mapped portals? Use 'chaosmap deleteall confirm'.")
+        ColourNote("white", "", "[ChaosMap] Are you sure you want to delete all of your tracked portals? Use 'chaosmap deleteall confirm'.")
     end
 end
 
 function inventory_alias()
     if running_inventory then
-        ColourNote("silver", "", "[ChaosMap] You're already finding portals in your inventory.")
+        ColourNote("silver", "", "[ChaosMap] You're already locating portals in your inventory.")
         return
     end
 
@@ -848,7 +848,7 @@ end
 
 function invdata_container_header(name, line, wc)
     if not invdata_container_queue or wc[1] ~= invdata_container_queue[1] then
-        ColourNote("red", "", "[ChaosMap] Error trying to find portals in your inventory.")
+        ColourNote("red", "", "[ChaosMap] Error trying to locate portals in your inventory.")
         return
     end
     
@@ -864,7 +864,7 @@ function invdata_container_item(name, line, wc)
     local item_type = wc[5]
     
     if not current_invdata_container then
-        ColourNote("red", "", "[ChaosMap] Error trying to find portals in your inventory.")
+        ColourNote("red", "", "[ChaosMap] Error trying to locate portals in your inventory.")
         return
     end
 
@@ -894,23 +894,24 @@ function invdata_container_footer()
         invdata_container_queue = nil
         
         local found_count = 0
-        local unmapped_count = 0
+        local untracked_count = 0
         local container_count = 0
         
         for id, loc_data in pairs(portal_locations) do
             found_count = found_count + 1
             if not chaos_portals[id] then
-                unmapped_count = unmapped_count + 1
+                untracked_count = untracked_count + 1
             end
             if loc_data.loc == "container" then
                 container_count = container_count + 1
             end
         end
-        ColourTell("white", "", "[ChaosMap] Found " .. found_count .. " chaos portals, " .. unmapped_count .. " unmapped, " .. container_count .. " in container(s).")
-        if unmapped_count > 0 then
-            ColourTell("white", "", " Use 'chaosmap next' to map an unmapped portal.")
+        ColourNote("white", "", "[ChaosMap] Found " .. found_count .. " chaos portals, " .. untracked_count .. " untracked, " .. container_count .. " in container(s).")
+        if untracked_count > 0 then
+            ColourNote("white", "", "  Use 'chaosmap next' to use and track an untracked portal,")
+            ColourNote("white", "", "  or 'chaosmap all' to use all of your untracked chaos portals, one after the other.")
+            ColourNote("yellow", "", "  WARNING: Be careful of portals that land in aggro rooms.")
         end
-        Note()
         
         SetVariable("portal_locations", json.encode(portal_locations))
     end
@@ -918,12 +919,12 @@ end
 
 function next_alias()
     do_all = false
-    map_next()
+    use_next()
 end
 
 function all_alias()
     do_all = true
-    map_next()
+    use_next()
 end
 
 function cancel_all()
@@ -945,10 +946,10 @@ function matchbylanding_alias()
     end
 end
 
-function map_next()
+function use_next()
     if not portal_locations then
         do_all = false
-        ColourNote("white", "", "[ChaosMap] Use 'chaosmap inventory' first to find portals in your inventory.")
+        ColourNote("white", "", "[ChaosMap] Use 'chaosmap inventory' first to locate portals in your inventory.")
         return
     end
     
@@ -977,7 +978,7 @@ function map_next()
             ColourNote("red", "", "[ChaosMap] ERROR: Invalid item location type: " .. portal_location.loc)
         end
     else
-        ColourNote("white", "", "[ChaosMap] You've mapped all the portals in your inventory!")
+        ColourNote("white", "", "[ChaosMap] Already tracking all the portals in your inventory!")
     end
 end
 
