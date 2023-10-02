@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Weight_Miniwin"
+   author="Sath"
+   id="0c8ee0cec0f5da6641796012"
+   language="Lua"
+   purpose="Displays output of the 'weight' command in a miniwin."
+   date_written="2023-10-01 12:00:00"
+   requires="4.73"
+   version="1.000"
+   save_state="y"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+<triggers>
+	<trigger
+	   enabled="y"
+	   match="^(Weight |Items  ): +(-?\d+) of (\d+) *$"
+	   regexp="y"
+	   script="weight_or_items"
+	   sequence="100"
+	/>
+</triggers>
+<script>
+<![CDATA[
+require "themed_miniwindows"
+
+function OnPluginEnable()	
+	create_window()
+end
+
+function OnPluginInstall()	
+	create_window()
+
+	ColourNote("white", "", plugin_prefix .. " Installed v" .. GetPluginInfo(GetPluginID(), 19) .. ".")
+end
+
+function create_window()
+	if not window then
+		window = ThemedTextWindow(
+			"weight",                    -- string, required, a unique identifier for this window
+			0, -- integer, required, where to put it if the player hasn't moved it
+			0,  -- integer, required, where to put it if the player hasn't moved it
+			200,         -- integer, required, how big to make it if the player hasn't moved it
+			100,        -- integer, required, how big to make it if the player hasn't moved it
+			"Weight/Items",                 -- string, optional (nil means no titlebar), text to put into the title
+			nil,       -- string, optional (default is "center"), "left", "center", or "right"
+			false,          -- boolean, optional (default is false), true adds a close button in the top left
+			true,            -- boolean, optional (default is false), make the window resizeable
+			false,       -- boolean, optional (default is false), add a scrollbar and mousewheel scrolling
+			false,       -- boolean, optional (default is false), make the text selectable
+			false,         -- boolean, optional (default is false), make the text copyable via right-click
+			false,        -- boolean, optional (default is false), turn detected URLs into clickable links
+			true,              -- boolean, optional (default is false), automatically wrap text lines that are too wide
+			"Courier New",       -- string, optional (default is Dina), override the title font name
+			10,       -- integer, optional (default is 10), override the title font size
+			"Courier New",        -- string, optional (default is Dina), override the body text font name
+			10,        -- integer, optional (default is 10), override the body text font size
+			nil,        -- integer, optional (default is 1000), maximum number of text lines to keep
+			2           -- integer, optional (default is 5 pixels), space between text and miniwindow frame
+		)
+	end
+	draw_window()
+end
+
+function OnPluginDisable()
+	window:close()
+	window = nil
+end
+
+function weight_or_items(name, line, wc)
+	if wc[1] == "Weight " then
+		SetVariable("weight", wc[2])
+		SetVariable("max_weight", wc[3])
+	elseif wc[1] == "Items  " then
+		SetVariable("items", wc[2])
+		SetVariable("max_items", wc[3])
+		draw_window()
+	end
+end
+
+function draw_window()
+	window:clear()
+	window:add_text(string.format("@gWeight:@W%5s of %s\n@gItems :@W%5s of %s", GetVariable("weight"), GetVariable("max_weight"), GetVariable("items"), GetVariable("max_items")))
+end
+
+
+----------------------- Plugin Update Code -----------------------
+-- Code taken from Durel's dinv plugin, originally via Crowley
+
+plugin_url = "https://sethbling.s3.us-west-2.amazonaws.com/Downloads/Aardwolf/plugins/aard_weight_miniwin.xml"
+SetVariable("DownloadURL", plugin_url)
+plugin_protocol = "HTTPS"
+plugin_prefix = "[WeightMiniwin]"
+
+function update_check_alias()
+    update_plugin("check")
+    ColourNote("white", "", plugin_prefix .. " Checking for updated version...")
+end
+
+function update_install_alias()
+    update_plugin("install")
+    ColourNote("white", "", plugin_prefix .. " Checking for and installing updated version...")
+end
+
+function reload_plugin()
+    local scriptPrefix = GetAlphaOption("script_prefix")
+    local retval
+
+    -- If the user has not already specified the script prefix for this version of mush, pick a
+    -- reasonable default value
+    if (scriptPrefix == "") then
+        scriptPrefix = "\\\\\\"
+        SetAlphaOption("script_prefix", scriptPrefix)
+    end
+
+    -- Tell mush to reload the plugin in one second.  We can't do it directly here because a
+    -- plugin can't unload itself.  Even if it could, how could it tell mush to load it again
+    -- if it weren't installed? 
+    retval = Execute(scriptPrefix.."DoAfterSpecial(0.1, \"ReloadPlugin('"..GetPluginID().."')\", sendto.script)")
+end
+
+function update_plugin(mode)
+    update_mode = mode
+
+    wait.make(get_plugin_file)
+end
+
+function get_plugin_file()
+    local urlThread = async.request(plugin_url, plugin_protocol)
+
+    if not urlThread then
+        note_error("Couldn't create async url request.")
+        return
+    end
+
+    local timeout = 10
+    local totTime = 0
+    while (urlThread:alive() and totTime < timeout) do
+        wait.time(0.1)
+        totTime = totTime + 0.1
+    end
+
+    local remoteRet, pluginData, status, headers, fullStatus = urlThread:join()
+
+    if not status then
+        ColourNote("red", "", plugin_prefix .. " Couldn't download plugin file. No status code.")
+        
+        return
+    end
+
+    if (status ~= 200) then
+        ColourNote("red", "", plugin_prefix .. " Plugin file request status code: " .. status .. ": " .. fullStatus)
+        return
+    end
+    
+    local currentVersion = GetPluginInfo(GetPluginID(), 19) or 0
+    local currentVerStr  = string.format("%1.3f", currentVersion)
+    local remoteVerStr   = string.match(pluginData, '%s%s+version="([0-9%.]+)"')
+    local remoteVersion  = tonumber(remoteVerStr or "") or 0
+
+    if remoteVersion == currentVersion then
+        ColourNote("white", "", plugin_prefix .. " You are running the most recent version (v" .. currentVerStr .. ")")
+    elseif (remoteVersion < currentVersion) then
+        ColourNote("white", "", plugin_prefix .. " You have a newer version than is publicly available. (v" .. currentVerStr .. ")")
+    elseif (update_mode == "check") then
+        ColourNote("white", "", plugin_prefix .. " You are running v" .. currentVerStr .. ", but there's a newer version v" .. remoteVerStr)
+    elseif (update_mode == "install") then
+        ColourNote("white", "", plugin_prefix .. " Updating plugin from version " .. currentVerStr .. " to version " .. remoteVerStr) 
+
+        local pluginFile = GetPluginInfo(GetPluginID(), 6)
+        local file = io.open(pluginFile, "wb")
+        file:write(pluginData)
+        file:close()
+        reload_plugin()
+    else
+        ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)
+    end
+end
+----------------------- End Plugin Update Code -----------------------
+]]>
+</script>
+
+
+</muclient>

@@ -64,6 +64,10 @@ Various options for combining multiple lines of output into single lines. Reform
 spamreduce combine
 ```
 
+**Aard_Weight_Miniwin**
+
+Displays the output of the 'weight' command in a miniwindow.
+
 **Traceback_Context**
 
 Displays the code that caused the crash when a plugin crashes.
