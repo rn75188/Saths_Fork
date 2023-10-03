@@ -20,6 +20,10 @@ chaosmap help
 
 Displays your queued commands in a miniwin.
 
+```
+cq help
+```
+
 **Aard_Drop_Duplicates**
 
 Drop unkept items with the same name as each other.
