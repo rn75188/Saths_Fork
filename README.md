@@ -54,8 +54,7 @@ memo help
 
 **Aard_Put_Nosave**
 
-Put all of your nosave items into a container. Finds items in your inventory,
-keyring, containers or worn.
+Put all items found in 'quit' check' into a container. Finds items in your inventory, keyring, containers or equipped.
 
 ```
 nosave put <container name>

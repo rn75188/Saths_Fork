@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2023-10-14 11:00:00"
    requires="2.0"
-   version="1.001"
+   version="1.002"
    >
 <description trim="y">
 <![CDATA[
@@ -105,7 +105,7 @@ local help_topics = {
     [""] = {
         "Commands:",
         {"nosave help",                  "Display this help file."},
-        {"nosave put <container name>",  "Locate all chaos portals in your inventory."},
+        {"nosave put <container name>",  "Put all items from 'quit check' into the container."},
 		{"nosave reload",                "Reloads the plugin."},
 		{"nosave update check|install",  "Checks/installs the most recent version."},
     },
