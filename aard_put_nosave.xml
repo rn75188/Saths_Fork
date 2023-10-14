@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_Put_Nosave"
+   author="Sath"
+   id="2c570e116acda827fe612b10"
+   language="Lua"
+   purpose="Put your nosave items in a container."
+   save_state="y"
+   date_written="2023-10-14 11:00:00"
+   requires="2.0"
+   version="1.001"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+</plugin>
+<include name="constants.lua"/>
+<aliases>
+    <alias
+        match="^nosave(?: .*)?$"
+        regexp="y"
+        enabled="y"
+        sequence="999"
+        script="help_alias"
+    />
+    <alias
+	   match="^nosave help(?: ([a-zA-Z]+))?$"
+       regexp="y"
+       enabled="y"
+	   script="help_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="nosave put *"
+       enabled="y"
+	   script="put_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="nosave reload"
+       enabled="y"
+	   script="reload_plugin"
+	   sequence="100"
+	/>
+    <alias
+	   match="nosave update check"
+       enabled="y"
+	   script="update_check_alias"
+	   sequence="100"
+	/>
+    <alias
+	   match="nosave update install"
+       enabled="y"
+	   script="update_install_alias"
+	   sequence="100"
+	/>
+
+</aliases>
+
+<triggers>
+    <trigger
+        enabled="n"
+        group="quit_check"
+        match="^\[[ \d]{2}\d\] (?:\(Key\)   |\(Nosave\))   \- (\d{5,12}) +[^ ].{35}(?: \(inside .+\/(\d{5,12})\)| \((Keyring)\)| \((Worn)\))?$"
+        regexp="y"
+        omit_from_output="y"
+        keep_evaluating="n"
+        script="quit_check_item"
+        sequence="100"
+    />
+
+    <trigger
+        enabled="n"
+        name="quit_check_done"
+        match="*"
+        omit_from_output="y"
+        script="quit_check_done"
+        sequence="105"
+    />
+    
+    <trigger
+        enabled="n"
+        group="quit_check"
+        match="You may quit safely without losing any items."
+        omit_from_output="y"
+        script="quit_check_none"
+    />
+</triggers>
+
+<script>
+<![CDATA[
+require("wait")
+require("async")
+json = require("json")
+require("gmcphelper")
+require("aardwolf_colors")
+require("tprint")
+
+----------------------- Help File Code -----------------------
+local help_topics = {
+    [""] = {
+        "Commands:",
+        {"nosave help",                  "Display this help file."},
+        {"nosave put <container name>",  "Locate all chaos portals in your inventory."},
+		{"nosave reload",                "Reloads the plugin."},
+		{"nosave update check|install",  "Checks/installs the most recent version."},
+    },
+}
+
+
+function help_alias(name, line, wc)
+    local topic = wc[1]
+    if not help_topics[topic] then
+        topic = ""
+    end
+    
+    local help_lines = help_topics[topic]
+
+    ColourNote("blue", "", "============================================================")
+	ColourNote("white", "", plugin_prefix .. " Help")
+	for _,line in ipairs(help_lines) do
+        if type(line) == "string" then
+            ColourNote("silver", "", Trim(line))
+        else
+            if line[3] == "link" then
+                Hyperlink(line[1], line[1], line[1], "yellow", "", false)
+                ColourTell("yellow", "", string.format("%" .. 33 - string.len(line[1]) .. "s", ""))
+            else
+                ColourTell("yellow", "", string.format("%-33s", line[1]))
+            end
+            if string.len(line[1]) >= 32 then
+                Note()
+                ColourTell("silver", "", string.format("%33s", ""))
+            end
+            ColourTell("silver", "", line[2])
+            Note()
+        end
+	end
+    ColourNote("blue", "", "============================================================")
+end
+
+----------------------- Plugin Callbacks -----------------------
+function OnPluginInstall()
+    ColourNote("white", "", plugin_prefix .. " Installed v" .. GetPluginInfo(GetPluginID(), 19) .. ". Use 'nosave help' for help.")
+end
+
+----------------------- Plugin Aliases -----------------------
+function put_alias(name, line, wc)
+    if DoingPut then
+        ColourNote("yellow", "", plugin_prefix .. " Nosave put command already in progress.")
+        return
+    end
+
+    DoingPut = true
+
+    SendNoEcho("quit check")
+    EnableTriggerGroup("quit_check", true)
+
+    QuitCheckItems = {}
+    ContainerName = wc[1]
+end
+
+function quit_check_item(name, line, wc)
+    if not QuitCheckItems or not ContainerName then
+        ColourNote("red", "", plugin_prefix .. " Error: Quit check triggered before put command.")
+        return
+    end
+
+    EnableTrigger("quit_check_done", true)
+    table.insert(QuitCheckItems, {
+        item_id = wc[1],
+        container_id = wc[2] ~= "" and wc[2],
+        in_keyring = wc[3] == "Keyring",
+        is_worn = wc[4] == "Worn",
+    })
+end
+
+function quit_check_done()
+    if not QuitCheckItems or not ContainerName then
+        ColourNote("red", "", plugin_prefix .. " Error: Quit check triggered before put command.")
+        return
+    end
+
+    EnableTriggerGroup("quit_check", false)
+    EnableTrigger("quit_check_done", false)
+
+    local any_in_keyring = false
+
+    wait.make(function ()
+        for _, item in ipairs(QuitCheckItems) do
+            if item.in_keyring then
+                if not any_in_keyring then
+                    send_delayed("keyring get all")
+                    any_in_keyring = true
+                end
+            end
+            if item.is_worn then
+                send_delayed("remove " .. item.item_id)
+            end
+            if item.container_id then
+                send_delayed("get " .. item.item_id .. " " .. item.container_id)
+            end
+            send_delayed("put " .. item.item_id .. " " .. ContainerName)
+        end
+
+        if any_in_keyring then
+            send_delayed("keyring put all")
+        end
+
+        send_delayed("echo @C" .. plugin_prefix .. " Done putting nosave items into '" .. ContainerName .. "'.")
+
+        quit_check_clear()
+    end)
+end
+
+function send_delayed(cmd)
+    SendNoEcho(cmd)
+    wait.time(0.1)
+end
+
+function quit_check_none(name, line, wc)
+    ColourNote("aqua", "", plugin_prefix .. " No nosave items found in your inventory.")
+    quit_check_clear()
+end
+
+function quit_check_clear()
+    EnableTriggerGroup("quit_check", false)
+    QuitCheckItems = nil
+    ContainerName = nil
+    DoingPut = false
+end
+
+----------------------- Plugin Update Code -----------------------
+-- Code taken from Durel's dinv plugin, originally via Crowley
+
+plugin_url = "https://sethbling.s3.us-west-2.amazonaws.com/Downloads/Aardwolf/plugins/aard_put_nosave.xml"
+SetVariable("DownloadURL", plugin_url)
+plugin_protocol = "HTTPS"
+plugin_prefix = "[Nosave]"
+
+function update_check_alias()
+    update_plugin("check")
+    ColourNote("white", "", plugin_prefix .. " Checking for updated version...")
+end
+
+function update_install_alias()
+    update_plugin("install")
+    ColourNote("white", "", plugin_prefix .. " Checking for and installing updated version...")
+end
+
+function reload_plugin()
+    local scriptPrefix = GetAlphaOption("script_prefix")
+    local retval
+
+    -- If the user has not already specified the script prefix for this version of mush, pick a
+    -- reasonable default value
+    if (scriptPrefix == "") then
+        scriptPrefix = "\\\\\\"
+        SetAlphaOption("script_prefix", scriptPrefix)
+    end
+
+    -- Tell mush to reload the plugin in one second.  We can't do it directly here because a
+    -- plugin can't unload itself.  Even if it could, how could it tell mush to load it again
+    -- if it weren't installed? 
+    retval = Execute(scriptPrefix.."DoAfterSpecial(0.1, \"ReloadPlugin('"..GetPluginID().."')\", sendto.script)")
+end
+
+function update_plugin(mode)
+    update_mode = mode
+
+    wait.make(get_plugin_file)
+end
+
+function get_plugin_file()
+    local urlThread = async.request(plugin_url, plugin_protocol)
+
+    if not urlThread then
+        note_error("Couldn't create async url request.")
+        return
+    end
+
+    local timeout = 10
+    local totTime = 0
+    while (urlThread:alive() and totTime < timeout) do
+        wait.time(0.1)
+        totTime = totTime + 0.1
+    end
+
+    local remoteRet, pluginData, status, headers, fullStatus = urlThread:join()
+
+    if not status then
+        ColourNote("red", "", plugin_prefix .. " Couldn't download plugin file. No status code.")
+        
+        return
+    end
+
+    if (status ~= 200) then
+        ColourNote("red", "", plugin_prefix .. " Plugin file request status code: " .. status .. ": " .. fullStatus)
+        return
+    end
+    
+    local currentVersion = GetPluginInfo(GetPluginID(), 19) or 0
+    local currentVerStr  = string.format("%1.3f", currentVersion)
+    local remoteVerStr   = string.match(pluginData, '%s%s+version="([0-9%.]+)"')
+    local remoteVersion  = tonumber(remoteVerStr or "") or 0
+
+    if remoteVersion == currentVersion then
+        ColourNote("white", "", plugin_prefix .. " You are running the most recent version (v" .. currentVerStr .. ")")
+    elseif (remoteVersion < currentVersion) then
+        ColourNote("white", "", plugin_prefix .. " You have a newer version than is publicly available. (v" .. currentVerStr .. ")")
+    elseif (update_mode == "check") then
+        ColourNote("white", "", plugin_prefix .. " You are running v" .. currentVerStr .. ", but there's a newer version v" .. remoteVerStr)
+    elseif (update_mode == "install") then
+        ColourNote("white", "", plugin_prefix .. " Updating plugin from version " .. currentVerStr .. " to version " .. remoteVerStr) 
+
+        local pluginFile = GetPluginInfo(GetPluginID(), 6)
+        local file = io.open(pluginFile, "wb")
+        file:write(pluginData)
+        file:close()
+        reload_plugin()
+    else
+        ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)
+    end
+end
+----------------------- End Plugin Update Code -----------------------
+]]>
+</script>
+
+
+</muclient>

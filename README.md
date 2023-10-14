@@ -52,6 +52,15 @@ Write memos for yourself. Memos named after a player show up in their whois/fing
 memo help
 ```
 
+**Aard_Put_Nosave**
+
+Put all of your nosave items into a container. Finds items in your inventory,
+keyring, containers or worn.
+
+```
+nosave put <container name>
+```
+
 **Aard_Showhidden**
 
 Shows all lines of MUD output, even those that plugins/triggers attempt to hide.
