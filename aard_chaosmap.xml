@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2023-04-17 11:00:00"
    requires="2.0"
-   version="1.016"
+   version="1.017"
    >
 <description trim="y">
 <![CDATA[
@@ -187,6 +187,13 @@
         omit_from_output="y"
         sequence="100"
         script="invmon_item"
+    />
+    <trigger
+        enabled="y"
+        match="^{invitem}\d+,[A-Z]*,[^,]*,-?\d+,-?\d+,-?\d+,-?\d+,-?\d+$"
+        regexp="y"
+        omit_from_output="y"
+        sequence="100"
     />
     <trigger
         name="invmon_failed"
