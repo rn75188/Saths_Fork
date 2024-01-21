@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2023-04-17 11:00:00"
    requires="2.0"
-   version="1.017"
+   version="1.018"
    >
 <description trim="y">
 <![CDATA[
@@ -1049,7 +1049,7 @@ function enable_id(id, dest, enable)
                 backup_lock[db_portal.cmd] = (db_portal.lock or 0)
                 
                 count = count + 1
-            elseif enable and temp and temp ~= backup then
+            elseif enable and backup and (temp and temp ~= backup or not temp and db_portal.lock and db_portal.lock ~= backup) then
                 Execute(";mapper fullcexit {" .. db_portal.cmd .. "} * " .. db_portal.dest .. " " .. backup)
                 
                 temp_lock[db_portal.cmd] = nil
