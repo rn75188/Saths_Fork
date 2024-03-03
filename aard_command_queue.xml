@@ -286,7 +286,7 @@ function hideecho_alias()
 		ColourNote("yellow", "", "[Command Queue] Hiding echocommands.")
 	end
 
-	SetTriggerOption("echocommands", "omit_from_output", GetVariable("entered_command"))
+	SetTriggerOption("entered_command", "omit_from_output", GetVariable("hideecho"))
 end
 
 function command_in_queue(cmd)
