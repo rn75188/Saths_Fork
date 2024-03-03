@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2020-11-25 19:54:08"
    requires="4.73"
-   version="1.005"
+   version="1.006"
    >
 <description trim="y">
 <![CDATA[
@@ -71,6 +71,7 @@
 
 <triggers>
 	<trigger
+	   name="entered_command"
 	   enabled="y"
 	   match="You entered: *"
 	   script="entered_command"
