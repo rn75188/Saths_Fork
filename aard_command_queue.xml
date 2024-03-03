@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2020-11-25 19:54:08"
    requires="4.73"
-   version="1.003"
+   version="1.004"
    >
 <description trim="y">
 <![CDATA[
@@ -236,6 +236,8 @@ function OnPluginInstall()
 	create_window()
     displayed = 0
 
+	SetTriggerOption("entered_command", "omit_from_output", GetVariable("hideecho"))
+
 	if IsConnected() then
 		OnPluginConnect()
 	end
@@ -284,7 +286,7 @@ function hideecho_alias()
 		ColourNote("yellow", "", "[Command Queue] Hiding echocommands.")
 	end
 
-	SetTriggerOption("echocommands", "omit_from_output", GetVariable("hideecho"))
+	SetTriggerOption("echocommands", "omit_from_output", GetVariable("entered_command"))
 end
 
 function command_in_queue(cmd)
