@@ -125,6 +125,32 @@
         sequence="100"
         script="gq_alias"
     />
+
+    <alias
+        match="^chaosmap tracking (start|end|.*)?$"
+        regexp="y"
+        enabled="y"
+        send_to="14"
+        script="chaosmap_tracking"
+    >
+    <send>
+        EnableTrigger("portal_entered", true)
+    </send>
+    </alias>
+
+    <alias
+        enabled="y"
+        ignore_case="y"
+        match="^chaosmap bag (\d+)"
+        name="chaos_portal_bag"
+        omit_from_output="n"
+        regexp="y"
+        script="chaosmap_bag"
+        sequence="100"
+        send_to="12"
+        group="chaosmap_counting"
+/>
+
 </aliases>
 
 <triggers>
@@ -285,6 +311,77 @@
         script="invdata_container_footer"
     />
     
+    <trigger
+        enabled="y"
+        match="WHOOOOOOOOOOOOSH!"
+        name="portal_entered"
+        script="portal_entered"
+        send_to="14"
+        group="chaosmap_counting"
+    >
+    <send>
+        EnableTrigger("eqdata_start", true)
+    </send>
+    </trigger>
+
+    <trigger
+        enabled="y"
+        name="eqdata_start"
+        match="{invdata (\d+)}"
+        omit_from_output="y"
+        regexp="y"
+        send_to="14"  
+        group="chaosmap_counting"
+    >
+    <send>
+        EnableTrigger("eqdata_capture_first", true)
+    </send>
+    </trigger>
+
+    <trigger
+        enabled="n"
+        name="eqdata_capture_first"
+        match="^(\d+),*"
+        omit_from_output="y"
+        regexp="y"
+        send_to="14"
+        script="eqdata_capture"
+        group="chaosmap_counting"
+    >
+    <send>
+        EnableTrigger("eqdata_capture_first", false)
+        EnableTrigger("eqdata_ignore_remainder", true)
+        EnableTrigger("eqdata_end", true)
+    </send>
+    </trigger>
+
+    <trigger
+        enabled="n"
+        name="eqdata_ignore_remainder"
+        match="^(\d+),*"
+        omit_from_output="y"
+        regexp="y"
+        group="chaosmap_counting"
+    >
+    </trigger>
+
+    <trigger
+        enabled="n"
+        name="eqdata_end"
+        match="{/invdata}"
+        omit_from_output="y"
+        regexp="y"
+        send_to="14"
+        group="chaosmap_counting"
+    >
+    <send>
+        EnableTrigger("eqdata_start", false)
+        EnableTrigger("eqdata_capture_first", false)
+        EnableTrigger("eqdata_ignore_remainder", false)
+        EnableTrigger("eqdata_end", false)
+    </send>
+</trigger>
+
 </triggers>
 
 <script>
@@ -313,6 +410,7 @@ local help_topics = {
         {"chaosmap gq start|end",          "Disable/re-enable non-golden chaos portals."},
 		{"chaosmap reload",                "Reloads the plugin."},
 		{"chaosmap update check|install",  "Checks/installs the most recent version."},
+        {"chaosmap tracking start|end",    "Start/stop tracking the number of times each chaos portal has been used."},
     },
 }
 
@@ -641,6 +739,11 @@ function get_room_id(room)
 end
 
 function list_alias(name, line, wc)
+
+    if chaos_tracking == "on" then
+        update_tracking_table()
+    end
+    
     local nomapper = wc[1] == "nomapper"
     local search_string = wc[2] and wc[2] ~= "" and string.lower(wc[2])
     local number = wc[3]
@@ -661,10 +764,17 @@ function list_alias(name, line, wc)
     if #chaos_portals_sorted == 0 then
         ColourNote("silver", "", "  No chaos portals being tracked.")
     else
-        ColourNote("white", "", string.format(
-            " %3s  %14s   %11s  %-5.5s %-20.20s %s",
-            "", "ID", "Item ID", "Dest", "Room Name", "Mapper?"
-        ))
+        if chaos_tracking == "on" then
+            ColourNote("white", "", string.format(
+                " %3s  %14s   %11s  %-5.5s %-20.20s %s %s %s",
+                "", "ID", "Item ID", "Dest", "Room Name", "Mapper?", "Used", "First Seen"
+            ))
+        else
+            ColourNote("white", "", string.format(
+                " %3s  %14s   %11s  %-5.5s %-20.20s %s",
+                "", "ID", "Item ID", "Dest", "Room Name", "Mapper?"
+            ))
+        end
         local i = 1
         for _, item in ipairs(chaos_portals_sorted) do
             local color = "silver"
@@ -701,6 +811,18 @@ function list_alias(name, line, wc)
                 disp = false
             end
             
+            local used, first_seen
+            if chaos_tracking == "on" then
+                local db_path = GetInfo(66) .. "\\chaos_tracker.db"
+                local db = assert(sqlite3.open(db_path))
+                local query = string.format("SELECT Used, first_seen FROM chaos_tracker WHERE id = %d", item.id)
+                for row in db:nrows(query) do
+                    used = row.Used
+                    first_seen = row.first_seen
+                end
+                db:close()
+            end
+
             if disp then
                 if item.data.ownedby then
                     ColourNote("orange", "", string.format(
@@ -708,10 +830,17 @@ function list_alias(name, line, wc)
                         i, item.data.id or "", golden_marker or "", item.id, item.data.dest or "", "Owned by: " .. item.data.ownedby, mapper_dest
                     ))
                 else
+                    if chaos_tracking == "on" then
+                        ColourNote(color, "", string.format(
+                            " %3d. %14s%1s: %11s #%-5.5s %-20.20s %s %s %s",
+                            i, item.data.id, golden_marker, item.id, item.data.dest, item.data.dest_name, mapper_dest, used, first_seen
+                        ))
+                    else
                     ColourNote(color, "", string.format(
                         " %3d. %14s%1s: %11s #%-5.5s %-20.20s %s",
                         i, item.data.id, golden_marker, item.id, item.data.dest, item.data.dest_name, mapper_dest
                     ))
+                    end
                 end
                 i = i + 1
             end
@@ -1154,6 +1283,120 @@ function get_plugin_file()
         ColourNote("red", "", plugin_prefix .. " Invalid update mode: " .. update_mode)
     end
 end
+
+chaos_tracking = "off"
+
+function chaosmap_tracking(name,line,wildcards)
+    if wildcards[1] == "start" then
+        chaos_tracking = "on"
+        local db_path = GetInfo(66) .. "\\chaos_tracker.db"
+        local db = assert(sqlite3.open(db_path))
+        create_tracking_table(db)
+        db:close()
+        update_tracking_table()
+        print("Tracking database initialized.")
+        print("")
+        if bagid == 0 or not bagid then
+            print('Use "chaosmap bag [objid]" to set your chaos portal bag.')
+        else
+            print("Chaos tracking bag set as " .. bagid)
+        end
+        print("")
+        return
+    elseif wildcards[1] == "end" then
+        EnableGroup("chaosmap_counting", false)
+        print("Chaos tracking closed.")
+        print("")
+        return
+    else 
+        print("Invalid command. Use 'chaosmap tracking start' or 'chaosmap tracking end'.")
+        print("")
+        return
+    end
+end
+
+function create_tracking_table(db)
+	local db_tables = {}
+	local query = "SELECT name FROM sqlite_master WHERE type='table'"
+	local create_tables = {}
+	
+	for row in db:nrows(query) do
+		db_tables[row.name] = true
+	end
+	
+	if not db_tables["chaos_tracker"] then
+		print("Creating table 'chaos_tracker'")
+		table.insert(create_tables, [[
+			CREATE TABLE chaos_tracker (
+				id INTEGER NOT NULL,
+				Used INTEGER NOT NULL,
+                first_seen DATE
+			);
+		]])
+	end
+	
+	if #create_tables > 0 then
+		db:execute(table.concat(create_tables,""))
+	end
+ 
+end
+
+
+function update_tracking_table()
+    local db_path = GetInfo(66) .. "\\chaos_tracker.db"
+    local db = assert(sqlite3.open(db_path))
+    
+    for id, info in pairs(chaos_portals) do
+        local query = string.format("SELECT id FROM chaos_tracker WHERE id = %d", id)
+        local result = {}
+        db:exec(query, function() table.insert(result, 1) end)
+        if #result == 0 then  -- If the ID is not found in the database
+            local today = os.date("%Y-%m-%d")
+            local insert_query = string.format("INSERT INTO chaos_tracker (id, Used, first_seen) VALUES (%d, 0, '%s')", id, today)
+            db:execute(insert_query)
+        end
+    end
+
+    print("Tracking database updated.")
+    db:close()
+end
+
+bagid = 0
+function chaosmap_bag(name, line, wildcards)
+    local objid = tonumber(wildcards[1])
+    bagid = objid
+    print("Chaos portal bag set to " .. bagid)
+end
+
+
+function portal_entered()  
+    if bagid == 0 then
+        print("No bag set for chaos portals")
+        return
+    end
+    SendNoEcho("invdata " .. bagid)
+end
+
+
+function eqdata_capture(name,line,wildcards)
+    local portal = tonumber(wildcards[1])
+
+    local db_path = GetInfo(66) .. "\\chaos_tracker.db"
+    local db = assert(sqlite3.open(db_path))
+
+    -- Get the current "Used" value for the given ID
+    local query = string.format("SELECT Used FROM chaos_tracker WHERE id = %d", portal)
+    for row in db:nrows(query) do
+        if row.Used then
+            -- If the ID is found, increment the "Used" value by 1
+            local update_query = string.format("UPDATE chaos_tracker SET Used = Used + 1 WHERE id = %d", portal)
+            db:execute(update_query)
+        end
+    end
+
+    db:close()
+end
+
 ----------------------- End Plugin Update Code -----------------------
 ]]>
 </script>
